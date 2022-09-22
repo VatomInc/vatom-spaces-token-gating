@@ -22,6 +22,3 @@ This plugin is used for token gating inside of spaces (Experimental)
 
 **Note** Currently only able to use Vatom ID. However, other fields will speed up API query.
 **Note** Admins by design. Will bypass entry denial. A popup will be displayed to notify user of this.
-
-## Publishing the plugin
-- Run: `npm run publish`
