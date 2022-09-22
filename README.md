@@ -1,7 +1,6 @@
 # Vatom Spaces: Example React Plugin 🔌
 
-This example plugin shows how to build a Spaces plugin that uses React for creating a panel.
-
+This plugin is used for token gating inside of spaces
 
 ## Building the plugin
 - Ensure you have [Node.js](https://nodejs.org) installed.
