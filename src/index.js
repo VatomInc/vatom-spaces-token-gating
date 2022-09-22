@@ -30,8 +30,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             inAccordion: true,
             panel: {
                 iframeURL: this.paths.absolute('ui-build/panel/index.html')
-            },
-            action: () => this.onSpaceEnter()
+            }
         })
 
          // Register settings
@@ -48,13 +47,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             }
         })
 
-        // this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
-
-        console.log("PLUGIN ON LOAD")
-
-        this.onSpaceEnter()
-
-        console.log('SPACE ENTER FINISHED')
+        this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
 
         // this.component = await this.objects.registerComponent(TokenGatingComponent, {
         //     id: 'token-gating-component',
@@ -62,8 +55,6 @@ export default class TokenGatingPlugin extends BasePlugin {
         //     description: 'Attach to zone to enable token gating',
         //     settings: []
         // })
-
-        // this.tokens = this.getField("tokens")
 
     }
 
@@ -128,48 +119,36 @@ export default class TokenGatingPlugin extends BasePlugin {
             console.warn("[Token Gating] No VatomID selected for token.")
             return
         }
- 
-        let profile = null
-        let startTime = Date.now()
-        while (true) {
-            profile = await this.hooks.trigger('vatoms.blockv.profile.get')
-            if (profile) break
-            if (Date.now() - startTime > 15000) throw new Error("Failed to load the user's BLOCKv profile within 15 seconds. Please check if you have the Vatom plugin installed.")
-            await new Promise(c => setTimeout(c, 1000))
-        }
 
-        console.log("Profile")
-        console.log(profile)
+        let userID = await this.user.getID()
+        userID = userID.split(':').pop()
 
-        //let userID = await this.user.getID()
-        let userID = profile.id
-
-        // {"lt":[0,{"count":{"filter":{"fn":"get-sol-nfts","owner":"CzudZFmWGwSY4SfwU2itGWNELWLLztm1DLpv3TBH8ks9"},"by":{"eq":["Golden Waves On Blue Ocean",{"select":["it","attributes","Side Face"]}]}}}]}
         let query = {query: {"fn":"get-vatoms","owner":userID}}
 
         if(businessID && businessID != '') query.query['business'] = businessID
         if(campaignID && campaignID != '') query.query['campaign'] = campaignID
         if(objectDef && objectDef != '') query.query['objectDefinition'] = objectDef
 
-        console.log(query)
-
-        let vatoms = await this.user.queryAllowlPermission(query)
+        let response = await this.user.queryAllowlPermission(query)
         
         console.group("Allowl Response")
         console.log("Target Vatom: ", vatomID)
-        console.log("Vatoms: ", vatoms)
+        console.log("Target Business: ", campaignID)
+        console.log("Target Campaign: ", campaignID)
+        console.log("Target Object Def: ", campaignID)
+        console.log("Vatom Returned: ", response.result)
         console.groupEnd()
+        
+        // Iterate through all vatoms
+        for(let vatom of response.result) {
 
-        // // Iterate through all vatoms
-        // for(let vatom of vatoms) {
-        //     // TODO: Check if vatom associated with token is in wallet
-        //     if(vatom.id == vatomID){
-        //         console.log(`[Entry Granted] User posses vatom with ID ${vatomID}`)
-        //         return
-        //     }
-        // }
+            if(vatom.id == vatomID) {
+                console.debug(`[Entry Granted] User posses vatom with ID ${vatomID}`)
+                return
+            }
+        }
 
-        // throw new Error(`[Entry Denied] User does not posses vatom with ID ${vatomID}.`)
+        throw new Error(`[Entry Denied] User does not posses vatom with ID ${vatomID}.`)
     }
 
 }

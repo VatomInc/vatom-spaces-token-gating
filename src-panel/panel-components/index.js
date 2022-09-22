@@ -178,18 +178,20 @@ import Swal from 'sweetalert2'
  * @param {React.CSSProperties=} props.style Optional. Additional styling to apply to the select component.
  */
  export const Select = props => <div style={Object.assign({ display: 'flex', position: 'relative', alignItems: 'center' }, props.style)}>
- <select disabled={!!props.disabled} value={typeof props.value == 'number' ? props.value ?? '' : props.value || ''} onChange={e => props.onValue(e.target.value)} style={{ WebkitAppearance: 'none', backgroundColor: 'rgba(0, 0, 0, 0.25)', borderRadius: 4, border: 'none', padding: '5px 10px', marginRight: 10, fontFamily: 'Inter', fontSize: 12, color: Server.dimension.data.fieldColor, wordBreak: 'break-word', lineHeight: '1.4', cursor: 'pointer', width: 'calc(100% - 10px)' }}>
-     { (props.items || []).map((name, idx) => {
-         // Get details
-         let value = props.values && props.values[idx];
-         if (typeof value == "undefined") {
-             value = name;
-         }
+    <select disabled={!!props.disabled} value={typeof props.value == 'number' ? props.value ?? '' : props.value || ''} onChange={e => props.onValue(e.target.value)} style={{ WebkitAppearance: 'none', backgroundColor: 'rgba(0, 0, 0, 0.25)', borderRadius: 4, border: 'none', padding: '5px 10px', marginRight: 10, fontFamily: 'Inter', fontSize: 12, color: '#FFFFFF', wordBreak: 'break-word', lineHeight: '1.4', cursor: 'pointer', width: 'calc(100% - 10px)' }}>
+        { (props.items || []).map((name, idx) => {
+            // Get details
+            let value = props.values && props.values[idx];
+            if (typeof value == "undefined") {
+                value = name;
+            }
 
-         return <option key={idx} value={value}>{ name }</option>
-       })
-     }
- </select>
+            return <option key={idx} value={value}>{ name }</option>
+        })
+        }
+    </select>
 
- <img src={require('./down-arrow.svg')} style={{ position: 'absolute', right: 20, width: 13, height: 13, pointerEvents: 'none' }} />
+    <img src={require('./down-arrow.svg')} style={{ position: 'absolute', right: 20, width: 13, height: 13, pointerEvents: 'none' }} />
 </div>
+
+const minimizeDecimals = num => Math.round(num * 100) / 100
