@@ -40,9 +40,9 @@ export default class TokenGatingPlugin extends BasePlugin {
             panel: {
                 fields: [
                     { id: 'vatomID', name: 'Vatom ID', default: '', help: 'Vatom ID of Token'},
-                    { id: 'businessID', name: 'Business ID', default: '', help: 'Business ID of Token (Optional)'},
-                    { id: 'campaignID', name: 'Campaign ID', default: '', help: 'Campaign ID of Token (Optional)'},
-                    { id: 'objectDef', name: 'Object Definition', default: '', help: 'Object Definition (e.g. video, image, model, etc) of Token (Optional)'}
+                    { id: 'businessID', name: 'Business ID (Optional)', default: '', help: 'Business ID of Token (Will Speed up API query)'},
+                    { id: 'campaignID', name: 'Campaign ID (Optional)', default: '', help: 'Campaign ID of Token (Will Speed up API query)'},
+                    { id: 'objectDef', name: 'Object Definition (Optional)', default: '', help: 'Object Definition of Token (Will Speed up API query)'}
                 ]
             }
         })
