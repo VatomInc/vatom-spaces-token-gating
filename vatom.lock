@@ -1,0 +1,14 @@
+{
+  "id": "token-gating",
+  "name": "Token Gating",
+  "version": "1.0.0",
+  "beta": true,
+  "description": "Allows for the prevention of access to a space or areas within a space, depending on if a user has a specific Vatom in their wallet",
+  "longDescription": "Allows for administrators or space owners to prevent access to their space or any area within their space for any users who do not possess the correct Vatom inside their wallet.",
+  "configuration": "Configuration Instructions not yet defined",
+  "category": "Accessibility",
+  "businessId": "ym3t3mPi0g",
+  "price": 0,
+  "releaseNotes": "Creation of plugin",
+  "entrypoint": ""
+}
