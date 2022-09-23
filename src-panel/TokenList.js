@@ -10,11 +10,11 @@ export default class TokenList extends React.PureComponent {
 
         return <>
     
-            {this.props.tokens.map(token => <Token id={token.id} name={token.name}/>)}
+            {this.props.tokens.map(token => <Token token={token} />)}
 
             <div style={{padding: 5}}/>
 
-            <Button title='Add another token' onClick={e => this.createToken()} style={{color: '#2EA7FF', backgroundColor: '#F8F9FA', border: '1px solid #CED4DA', borderRadius: 3, height: 28}}/>
+            <Button title='Add token' onClick={e => this.createToken()} style={{color: '#2EA7FF', backgroundColor: '#F8F9FA', border: '1px solid #CED4DA', borderRadius: 3, height: 28}}/>
     
         </>
     }
@@ -23,9 +23,12 @@ export default class TokenList extends React.PureComponent {
     createToken() {
         console.log('[TokenList] Creating token')
 
-        // Create ID and name
+        // Create ID
         let id = uuidv4()
-        let name = "Token " + this.props.tokens.length+1
+        
+        // Create Name
+        let tokenNum = this.props.tokens.length+1
+        let name = "Token " + tokenNum
 
         // New token
         let token = {id: id, name: name}

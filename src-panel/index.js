@@ -12,17 +12,17 @@ class App extends React.PureComponent {
 
         window.addEventListener('message', e => {
             
-            console.log("[Panel] ", e)
+            console.debug("[Token Gating] Panel onMessage: ", e)
             
             // If plugin is sending us reference to exisiting tokens
             if(e.data.action == 'send-tokens') {
-                console.log("[Panel] Received tokens")
+                console.debug("[Token Gating] Panel received tokens")
                 // Set panel's tokens reference to the one received from plugin
                 this.setState({tokens: e.data.tokens})
             }
 
             if(e.data.action == 'update-panel') {
-                console.log("[Panel] Update Panel")
+                console.debug("[Token Gating] Updating Panel")
                 this.forceUpdate()
             }
         })
@@ -34,7 +34,7 @@ class App extends React.PureComponent {
     /** Render */
     render = () => <>
 
-        <Settings/>
+        {/* <Settings/> */}
         {this.state.tokens ? <TokenList tokens={this.state.tokens}/> : null}
      
     </>

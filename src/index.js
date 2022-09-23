@@ -26,7 +26,7 @@ export default class TokenGatingPlugin extends BasePlugin {
         // Create a button in the toolbar
         this.menus.register({
             icon: this.paths.absolute('button-icon.png'),
-            text: 'Token Gating',
+            text: 'Tokens',
             inAccordion: true,
             panel: {
                 iframeURL: this.paths.absolute('ui-build/panel/index.html')
@@ -34,20 +34,18 @@ export default class TokenGatingPlugin extends BasePlugin {
         })
 
          // Register settings
-         this.menus.register({
-            id: 'token-gating-config',
-            section: 'plugin-settings',
-            panel: {
-                fields: [
-                    { id: 'vatomID', name: 'Vatom ID', default: '', help: 'Vatom ID of Token'},
-                    { id: 'businessID', name: 'Business ID (Optional)', default: '', help: 'Business ID of Token (Will Speed up API query)'},
-                    { id: 'campaignID', name: 'Campaign ID (Optional)', default: '', help: 'Campaign ID of Token (Will Speed up API query)'},
-                    { id: 'objectDef', name: 'Object Definition (Optional)', default: '', help: 'Object Definition of Token (Will Speed up API query)'}
-                ]
-            }
-        })
-
-        this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
+        //  this.menus.register({
+        //     id: 'token-gating-config',
+        //     section: 'plugin-settings',
+        //     panel: {
+        //         fields: [
+        //             { id: 'vatomID', name: 'Vatom ID', default: '', help: 'Vatom ID of Token'},
+        //             { id: 'businessID', name: 'Business ID (Optional)', default: '', help: 'Business ID of Token (Will Speed up API query)'},
+        //             { id: 'campaignID', name: 'Campaign ID (Optional)', default: '', help: 'Campaign ID of Token (Will Speed up API query)'},
+        //             { id: 'objectDef', name: 'Object Definition (Optional)', default: '', help: 'Object Definition of Token (Will Speed up API query)'}
+        //         ]
+        //     }
+        // })
 
         // this.component = await this.objects.registerComponent(TokenGatingComponent, {
         //     id: 'token-gating-component',
@@ -56,99 +54,153 @@ export default class TokenGatingPlugin extends BasePlugin {
         //     settings: []
         // })
 
+        // Get saved tokens
+        let savedTokens = this.getField('tokens')
+        if(savedTokens) {
+            this.tokens = savedTokens
+        }
+
+        // console.group('[Token Gating:Plugin] Tokens onLoad')
+        // console.log(this.tokens)
+        // console.log(this.getField('tokens'))
+        // console.groupEnd()
+
+        // Checks tokens to grant or deny entry
+        this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
+
     }
 
     /** Receives postMessages */
-    onMessage = e => {
-        console.log('[Plugin] ', e)
+    onMessage = async e => {
+        console.log('[Token Gating] Plugin OnMessage: ', e)
         
-        // If panel is attempting to fetch tokens
+        // Pass tokens to panel
         if(e.action == 'get-tokens') {
-            console.log('[Plugin] Sending tokens')
+            console.debug('[Token Gating] Sending tokens to panel')
             // Send panel array of existing tokens
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
         }
 
-        // If panel has added a token
+        // Add a token
         if(e.action == 'add-token') {
-            console.log('[Plugin] Adding new Token')
+            console.debug('[Token Gating] Adding new Token')
             // Add new token to list of tokens
             this.tokens.push(e.token)
-            // this.setField('tokens', this.tokens)
+            // Save new token 
+            await this.setField('tokens', this.tokens)
+            // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
         }
 
-        // If panel is attempting to update a token
+        // Update a token
         if(e.action == 'update-token') {
-            console.log('[Plugin] Updating token with ID: ' + e.id)
-            if(e.vatomID) {
-                // Update vatomID of token
-                let index = this.tokens.findIndex(t => t.id == e.id);
+            console.debug('[Token Gating] Updating token with ID: ' + e.id)
+            
+            // Get index of token we are updating
+            let index = this.tokens.findIndex(t => t.id == e.id);
+            
+            if(e.network){
+                // Update network that token belongs to    
+                this.tokens[index].network = e.network
+            }
+            else if(e.vatomID) {
+                // Update vatomID that token must have
                 this.tokens[index].vatomID = e.vatomID
-                // Save new tokens to settings 
-                // this.setField('tokens', this.tokens)
+            }
+            else if(e.businessID) {
+                // Update businessID that token belongs to
+                this.tokens[index].businessID = e.businessID
+            }
+            else if(e.campaignID){
+                // Update campaign ID that token belongs to
+                this.tokens[index].campaignID = e.campaignID
+            }
+            else if(e.objectID){
+                // Update object ID that token belongs to
+                this.tokens[index].objectID = e.objectID
             }
             else if(e.zoneID) {
-                // Update zoneID of token
-                let index = this.tokens.findIndex(t => t.id == e.id);
+                // Update zoneID that token must block
                 this.tokens[index].zoneID = e.zoneID
-                // Save new tokens to settings 
-                // this.setField('tokens', this.tokens)
+            }
+            else if(e.minAmountHeld) {
+                // Update field dictating the minium amount of this token required
+                this.tokens[index].minAmountHeld = e.minAmountHeld
             }
             else {
                 // Throw error if neither can be updated
-                throw new Error("[Plugin] Failed to update field")
+                throw new Error("[Token Gating] Failed to update token field")
             }
 
-            console.group('[Plugin] New Tokens')
-            console.log(this.tokens)
-            console.groupEnd()
+            // Save token update 
+            await this.setField('tokens', this.tokens)
+            // Send updated token list back to panel
+            this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
         }
+
+
+        if(e.action == 'delete-token'){
+            // Get index of token we are updating
+            let index = this.tokens.findIndex(t => t.id == e.id);
+            // Only splice array if token is found
+            if (index > -1) { 
+                // Remove token
+                this.tokens.splice(index, 1); 
+            }
+            else {
+                throw new Error('[Token Gating] Failed to delete token')
+            }
+
+            // Save token update 
+            await this.setField('tokens', this.tokens)
+
+            // Send updated token list back to panel
+            this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
+        }
+
+        console.group('[Token Gating] New Tokens')
+        console.log(this.tokens)
+        console.log(this.getField('tokens'))
+        console.groupEnd()
     }
 
-    onSpaceEnter = async e => {
-
-        // Get target query fields from settings
-        let vatomID = this.getField('vatomID')
-        let businessID = this.getField('businessID')
-        let campaignID = this.getField('campaignID')
-        let objectDef = this.getField('objectDef')
-
-        // If vatomID is null or empty return
-        if (!vatomID || vatomID == '') {
-            console.warn("[Token Gating] No VatomID selected for token.")
-            return
-        }
+    onSpaceEnter = async () => {
 
         let userID = await this.user.getID()
         userID = userID.split(':').pop()
 
-        let query = {query: {"fn":"get-vatoms","owner":userID}}
+        for(let token of this.tokens){
 
-        if(businessID && businessID != '') query.query['business'] = businessID
-        if(campaignID && campaignID != '') query.query['campaign'] = campaignID
-        if(objectDef && objectDef != '') query.query['objectDefinition'] = objectDef
-
-        let response = await this.user.queryAllowlPermission(query)
-        
-        console.group("Allowl Response")
-        console.log("Target Vatom: ", vatomID)
-        console.log("Target Business: ", campaignID)
-        console.log("Target Campaign: ", campaignID)
-        console.log("Target Object Def: ", campaignID)
-        console.log("Vatom Returned: ", response.result)
-        console.groupEnd()
-        
-        // Iterate through all vatoms
-        for(let vatom of response.result) {
-
-            if(vatom.id == vatomID) {
-                console.debug(`[Entry Granted] User posses vatom with ID ${vatomID}`)
-                return
+            // If token's vatomID is null or empty continue
+            if (!token.vatomID || token.vatomID == '') {
+                console.warn(`[Token Gating] No VatomID found for the following token: ${token}`)
+                continue
             }
-        }
 
-        throw new Error(`[Entry Denied] User does not posses vatom with ID ${vatomID}.`)
+            // Construct query
+            let query = {query: {"fn":"get-vatoms","owner":userID}}
+            if(token.businessID) query.query['business'] = token.businessID
+            if(token.campaignID) query.query['business'] = token.businessID
+            if(token.objectID) query.query['business'] = token.businessID
+
+            // Fetch vatoms returned from query
+            let response = await this.user.queryAllowlPermission(query)
+
+            // console.group("Allowl Response")
+            // console.debug("Vatom Returned: ", response.result)
+            // console.groupEnd()
+
+            // Iterate through all returned vatoms
+            for(let vatom of response.result) {
+    
+                if(vatom.id == token.vatomID ){
+                    console.debug(`[Token Gating] Entry Granted. User has the correct tokens in their wallet.`)
+                    return
+                }
+            }
+        } 
+        
+        throw new Error(`[Token Gating] Entry Denied. User does not have the correct tokens in their wallet.`)
     }
 
 }

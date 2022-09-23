@@ -14,11 +14,12 @@ This plugin is used for token gating inside of spaces (Experimental)
 
 > **Note:** You can only sideload plugins in a space you are the owner of.
 
-## Using the plugin (Version 0)
-- Open the plugin menu
-- Find the token gating plugin (which should be sideloaded)
-- Open settings panel
-- Input the relevant details (Vatom ID is mandatory)
+## Using the plugin (Version 1)
+- Open the tokens menu (via button on bottom bar)
+- Create token/s
+- Input the vatom ID of the vatom you wish to tokenize (Mandatory)
+- Input the other fields if you'd like (Optional) it should speed up the API request time
+- Can delete token if necessary, setting the Vatom ID to empty will prevent it from being used as well.
 
-**Note** Currently only able to use Vatom ID. However, other fields will speed up API query.
-**Note** Admins by design. Will bypass entry denial. A popup will be displayed to notify user of this.
+**Note** Admins by design. Will bypass entry denial. A popup will be displayed to notify user of this. <br />
+**Note** The API query takes a few seconds to return before granting or denying entrance to space.
