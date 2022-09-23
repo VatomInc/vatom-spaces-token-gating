@@ -180,8 +180,8 @@ export default class TokenGatingPlugin extends BasePlugin {
             // Construct query
             let query = {query: {"fn":"get-vatoms","owner":userID}}
             if(token.businessID) query.query['business'] = token.businessID
-            if(token.campaignID) query.query['business'] = token.businessID
-            if(token.objectID) query.query['business'] = token.businessID
+            if(token.campaignID) query.query['campaign'] = token.campaignID
+            if(token.objectID) query.query['objectDefinition'] = token.objectID
 
             // Fetch vatoms returned from query
             let response = await this.user.queryAllowlPermission(query)
