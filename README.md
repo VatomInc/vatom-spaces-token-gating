@@ -15,6 +15,7 @@ This plugin is used for token gating inside of spaces (Experimental)
 > **Note:** You can only sideload plugins in a space you are the owner of.
 
 ## Using the plugin (Version 1)
+- NB: Ensure you on the following branch: 'ext-plugin-set-field'
 - Open the tokens menu (via button on bottom bar)
 - Create token/s
 - Input the vatom ID of the vatom you wish to tokenize (Mandatory)
