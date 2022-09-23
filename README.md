@@ -1,4 +1,4 @@
-# Vatom Spaces: Example React Plugin 🔌
+# Vatom Spaces: Token Gating Plugin 🔌
 
 This plugin is used for token gating inside of spaces (Experimental)
 
