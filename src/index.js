@@ -1,4 +1,3 @@
-import Swal from "sweetalert2"
 
 /**
  * This is the main entry point for your plugin.
@@ -35,6 +34,9 @@ export default class TokenGatingPlugin extends BasePlugin {
     
     // Used to track if we have been granted access to the current region
     currentRegionAccess = false
+
+    // Tracks if we are actively removing user from region
+    removingUser = false
 
     /** Called on load */
     async onLoad() {
@@ -315,6 +317,34 @@ export default class TokenGatingPlugin extends BasePlugin {
             let userInsideRegion = await this.userInsideRegion(token.zoneID)
             if(userInsideRegion) {
 
+                // Stop if actively removing user already
+                if(this.removingUser)
+                    return
+
+                // If we have checked the current region and denied access then kick user out
+                if(this.currentRegionCheck && !this.currentRegionAccess) {
+
+                    // If we know user's last position before entering zone
+                    if(this.lastUserPosition){
+                        
+                        // If we aren't already removing user 
+                        if(!this.removingUser) {
+                            this.removingUser = true
+                            // Set user position to last recorded position before entering zone
+                            this.user.setPosition(this.lastUserPosition.x, this.lastUserPosition.y, this.lastUserPosition.z)
+                            this.menus.alert('Entry to region denied', "You do not possess the correct token required to enter this region", 'error')
+                        }
+            
+                    }
+                    else {
+                        // Edge Case: If user's last known position isn't recorded, just move user out via top right
+                        let position = await this.user.getPosition()
+                        this.user.setPosition(position.x + 2, position.y, position.z + 2)
+                    }
+
+                }
+
+                // If we have not yet checked the current region
                 if(!this.currentRegionCheck) {
                     
                     // Construct query based on token parameters
@@ -332,18 +362,15 @@ export default class TokenGatingPlugin extends BasePlugin {
 
                 }
 
-                // If we have checked the current region and denied access then kick user out
-                if(this.currentRegionCheck && !this.currentRegionAccess) {
-                    let position = await this.user.getPosition()
-                    this.user.setPosition(position.x - 2, position.y, position.z - 2)
-                }
-
                 return
 
             }
             else {
-                if(this.checkedCurrentRegion) this.checkedCurrentRegion = false
+                // If user not inside region, set vars to false and track user position
+                if(this.currentRegionCheck) this.currentRegionCheck = false
                 if(this.currentRegionAccess) this.currentRegionAccess = false
+                if(this.removingUser) this.removingUser = false
+                this.lastUserPosition = await this.user.getPosition()
             }
            
         }
