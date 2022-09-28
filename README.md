@@ -14,7 +14,7 @@ This plugin is used for token gating inside of spaces (Experimental)
 
 > **Note:** You can only sideload plugins in a space you are the owner of.
 
-## Using the plugin (Version 1)
+## Using the plugin (Version 2)
 - Open the tokens menu (via button on bottom bar)
 - Create token/s (Only Vatom Network at the moment)
 - Select type (NFT or Coin)
