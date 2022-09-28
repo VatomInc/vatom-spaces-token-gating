@@ -21,7 +21,7 @@ export default class TokenList extends React.PureComponent {
 
     /** Creates new token and sends it to plugin  */
     createToken() {
-        console.log('[TokenList] Creating token')
+        console.debug('[Token Gating] Creating token from panel')
 
         // Create ID
         let id = uuidv4()
@@ -30,8 +30,8 @@ export default class TokenList extends React.PureComponent {
         let tokenNum = this.props.tokens.length+1
         let name = "Token " + tokenNum
 
-        // New token
-        let token = {id: id, name: name}
+        // New token (default fields)
+        let token = {id: id, name: name, network: 'vatom', type: 'nft', campaignID: null, objectID: null, businessID: null, minAmountHeld: 1}
 
         // Send new token to plugin
         window.parent.postMessage({action: 'add-token', token: token}, '*');

@@ -15,12 +15,12 @@ This plugin is used for token gating inside of spaces (Experimental)
 > **Note:** You can only sideload plugins in a space you are the owner of.
 
 ## Using the plugin (Version 1)
-- NB: Ensure you on the following branch: 'ext-plugin-set-field'
 - Open the tokens menu (via button on bottom bar)
-- Create token/s
-- Input the vatom ID of the vatom you wish to tokenize (Mandatory)
-- Input the other fields if you'd like (Optional) it should speed up the API request time
-- Can delete token if necessary, setting the Vatom ID to empty will prevent it from being used as well.
+- Create token/s (Only Vatom Network at the moment)
+- Select type (NFT or Coin)
+- Input the campaign ID + Object ID of the vatom smart NFT OR business IF for vatom coin.
+- Can delete token if necessary, setting the fields to empty will prevent it from being used as well.
+- Inputting a Zone ID will convert token to gate the given zone instead of the space.
 
 **Note** Admins by design. Will bypass entry denial. A popup will be displayed to notify user of this. <br />
 **Note** The API query takes a few seconds to return before granting or denying entrance to space.

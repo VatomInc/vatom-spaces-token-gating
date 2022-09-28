@@ -6,7 +6,10 @@ import Settings from './Settings'
 /** Main app */
 class App extends React.PureComponent {
 
-    state={tokens: null}
+    state = {
+        tokens: null,
+        settings: null
+    }
 
     componentDidMount() {
 
@@ -14,11 +17,16 @@ class App extends React.PureComponent {
             
             console.debug("[Token Gating] Panel onMessage: ", e)
             
-            // If plugin is sending us reference to exisiting tokens
+            // If plugin is sending us reference to existing tokens
             if(e.data.action == 'send-tokens') {
                 console.debug("[Token Gating] Panel received tokens")
-                // Set panel's tokens reference to the one received from plugin
                 this.setState({tokens: e.data.tokens})
+            }
+
+            // If plugins is sending us reference to existing settings
+            if(e.data.action == 'send-settings') {
+                console.debug("[Token Gating] Panel received settings")
+                this.setState({settings: e.data.settings})
             }
 
             if(e.data.action == 'update-panel') {
@@ -27,14 +35,16 @@ class App extends React.PureComponent {
             }
         })
 
-        // Send message to plugin to fetch existing tokens
-        window.parent.postMessage({action: 'get-tokens'}, '*');
+        // Send message to plugin to fetch existing tokens and settings
+        window.parent.postMessage({action: 'get-tokens'}, '*')
+        window.parent.postMessage({action: 'get-settings'}, '*')
+
     }
 
     /** Render */
     render = () => <>
 
-        {/* <Settings/> */}
+        {/* <Settings settings={this.state.settings}/> */}
         {this.state.tokens ? <TokenList tokens={this.state.tokens}/> : null}
      
     </>

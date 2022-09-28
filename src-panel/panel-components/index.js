@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import DOMPurify from 'dompurify'
 import Swal from 'sweetalert2'
 
@@ -195,3 +195,62 @@ import Swal from 'sweetalert2'
 </div>
 
 const minimizeDecimals = num => Math.round(num * 100) / 100
+
+/**
+ * A simple checkbox.
+ * @param {object} props The switch properties.
+ * @param {Function} props.onToggle Function to call when switch is toggled.
+ * @param {string} props.backgroundColor Custom background color value.
+ * @param {labelLeft} props.labelLeft Left side label
+ * @param {labelRight} props.labelRight Right side label
+ */
+export const LabeledSwitch = props => {
+
+    // Called when component is mounted
+    useEffect(() => {
+        props.direction == 'left' ? setXpos(60) : setXpos(0)
+    }, [xPos]);
+
+    // Called onClick
+    function onClick (direction){   
+        direction == 'left' ? setXpos(x => x - 60) : setXpos(x => x + 60)
+        setStyle({transform: `translateX(${xPos}px)`})
+        direction = getOppositeDirection(direction)
+        setDirection(direction)
+
+        // Call OnToggle from props
+        props.onToggle()
+    }
+
+    // Get opposite direction on one given
+    const getOppositeDirection = (direction) => {
+        if(direction == 'left') return 'right'
+        if(direction == 'right') return 'left'
+    }
+    
+    // Component fields
+    const [direction, setDirection] = useState(props.direction || 'left')
+    const [xPos, setXpos] = useState(props.direction == 'left' ? 0 : 60)
+    const [style, setStyle] = useState({transform: `translateX(${xPos}px)`});
+
+    return <div onClick={e => onClick(direction)} style={Object.assign({  
+        display: 'flex',
+        alignItems: 'center',
+        margin: '30px auto',
+        width: 130, 
+        height: 30, 
+        cursor: 'pointer',
+        backgroundColor: props.backgroundColor ? props.backgroundColor : '#FFFFFF',
+        borderRadius: 40, 
+        userSelect: 'none',
+        }, props.style)}>  
+
+        <div style={Object.assign({width: 65, height: 25, transition: 'transform 250ms', backgroundColor: '#FC500E', borderRadius: 40, border: '2px solid #E9ECEF'}, style)} />
+        
+        <div style={{position: 'absolute'}}>
+            <div style={{float: 'left', marginLeft: 10, fontSize: 10, color: direction == 'left' ? '#FFFFFF' : '#3F4A55'}}>{props.labelLeft}</div>
+            <div style={{float: 'right', marginLeft: 28, fontSize: 10, color: direction == 'right' ? '#FFFFFF' : '#3F4A55'}}>{props.labelRight}</div>
+        </div>      
+        
+    </div>
+}

@@ -1,3 +1,5 @@
+import Swal from "sweetalert2"
+
 /**
  * This is the main entry point for your plugin.
  *
@@ -7,7 +9,6 @@
  * @license MIT
  * @author Vatom Inc.
  */
-
 export default class TokenGatingPlugin extends BasePlugin {
 
     /** Plugin info */
@@ -17,8 +18,23 @@ export default class TokenGatingPlugin extends BasePlugin {
     // Array of all tokens
     tokens = []
 
-    // Reference to component
-    component = null
+    // Date from which tokens are active
+    fromDate = ''
+
+    // Date to which tokens will be active
+    toDate = ''
+
+    // Determines if all or any of our tokens are necessary to grant access
+    multiCondition = 'and'
+
+    // Reference to userID
+    userID = null
+
+    // Used to track if we have checked access to the current region
+    currentRegionCheck = false
+    
+    // Used to track if we have been granted access to the current region
+    currentRegionAccess = false
 
     /** Called on load */
     async onLoad() {
@@ -33,41 +49,46 @@ export default class TokenGatingPlugin extends BasePlugin {
             }
         })
 
-         // Register settings
-        //  this.menus.register({
-        //     id: 'token-gating-config',
-        //     section: 'plugin-settings',
-        //     panel: {
-        //         fields: [
-        //             { id: 'vatomID', name: 'Vatom ID', default: '', help: 'Vatom ID of Token'},
-        //             { id: 'businessID', name: 'Business ID (Optional)', default: '', help: 'Business ID of Token (Will Speed up API query)'},
-        //             { id: 'campaignID', name: 'Campaign ID (Optional)', default: '', help: 'Campaign ID of Token (Will Speed up API query)'},
-        //             { id: 'objectDef', name: 'Object Definition (Optional)', default: '', help: 'Object Definition of Token (Will Speed up API query)'}
-        //         ]
-        //     }
-        // })
 
-        // this.component = await this.objects.registerComponent(TokenGatingComponent, {
-        //     id: 'token-gating-component',
-        //     name: 'Token Gating',
-        //     description: 'Attach to zone to enable token gating',
-        //     settings: []
-        // })
+        // Get relevant part of userID used for API querying and store it
+        let userID = await this.user.getID()
+        this.userID = userID.split(':').pop()
 
-        // Get saved tokens
-        let savedTokens = this.getField('tokens')
-        if(savedTokens) {
-            this.tokens = savedTokens
-        }
-
-        // console.group('[Token Gating:Plugin] Tokens onLoad')
-        // console.log(this.tokens)
-        // console.log(this.getField('tokens'))
-        // console.groupEnd()
+        // Fetch all saved fields
+        this.getSavedSettings()
 
         // Checks tokens to grant or deny entry
         this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
 
+        // Periodically check to ensure specified regions are gated
+        setInterval(this.gateRegions, 1000)
+
+        console.group('[Token Gating] Starting Tokens')
+        console.log("[Plugin]: ", this.tokens)
+        console.log("[Server]: ", this.getField('tokens'))
+        console.groupEnd()
+
+    }
+
+    /** Fetches all saved settings and assigns them to plugin variables */
+    getSavedSettings() {
+        
+        // Get saved tokens
+        let savedTokens = this.getField('tokens')
+        if(savedTokens) this.tokens = savedTokens
+
+        // Get saved fromDate
+        let fromDate = this.getField('fromDate')
+        if(fromDate) this.fromDate = fromDate
+
+        // Get saved toDate
+        let toDate = this.getField('toDate')
+        if(toDate) this.toDate = toDate
+
+        // Get saved multi-condition
+        let multiCondition = this.getField('multiCondition')
+        if(multiCondition) this.multiCondition = multiCondition
+        
     }
 
     /** Receives postMessages */
@@ -79,6 +100,34 @@ export default class TokenGatingPlugin extends BasePlugin {
             console.debug('[Token Gating] Sending tokens to panel')
             // Send panel array of existing tokens
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
+        }
+
+        if(e.action == 'get-settings'){
+            console.debug('[Token Gating] Sending settings to panel')
+            let settings = {dateFrom: this.dateFrom, dateTo: this.dateTo, multiCondition: this.multiCondition}
+            this.menus.postMessage({action: 'send-settings', settings: settings}, '*')
+        }
+
+        // Updating token gating settings 
+        if(e.action == 'update-settings'){
+            
+            // Set fromDate setting
+            if(e.fromDate) {
+                this.fromDate = e.fromDate
+                await this.setField('fromDate', this.fromDate)
+            }
+
+            // Set toDate setting
+            if(e.toDate) {
+                this.toDate = e.toDate
+                await this.setField('toDate', this.toDate)
+            }
+
+            // Set multi-condition setting
+            if(e.multiCondition) {
+                this.multiCondition = e.multiCondition
+                await this.setField('toDate', this.toDate)
+            }
         }
 
         // Add a token
@@ -98,54 +147,28 @@ export default class TokenGatingPlugin extends BasePlugin {
             
             // Get index of token we are updating
             let index = this.tokens.findIndex(t => t.id == e.id);
-            
-            if(e.network){
-                // Update network that token belongs to    
-                this.tokens[index].network = e.network
-            }
-            else if(e.vatomID) {
-                // Update vatomID that token must have
-                this.tokens[index].vatomID = e.vatomID
-            }
-            else if(e.businessID) {
-                // Update businessID that token belongs to
-                this.tokens[index].businessID = e.businessID
-            }
-            else if(e.campaignID){
-                // Update campaign ID that token belongs to
-                this.tokens[index].campaignID = e.campaignID
-            }
-            else if(e.objectID){
-                // Update object ID that token belongs to
-                this.tokens[index].objectID = e.objectID
-            }
-            else if(e.zoneID) {
-                // Update zoneID that token must block
-                this.tokens[index].zoneID = e.zoneID
-            }
-            else if(e.minAmountHeld) {
-                // Update field dictating the minium amount of this token required
-                this.tokens[index].minAmountHeld = e.minAmountHeld
-            }
-            else {
-                // Throw error if neither can be updated
-                throw new Error("[Token Gating] Failed to update token field")
-            }
+
+            // Get key and value of new properties
+            let key = Object.keys(e.properties)
+            let value = e.properties[key]
+
+            // Assign value to property
+            this.tokens[index][key] = value
 
             // Save token update 
             await this.setField('tokens', this.tokens)
+            
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
         }
 
-
-        if(e.action == 'delete-token'){
+        if(e.action == 'delete-token') {
             // Get index of token we are updating
             let index = this.tokens.findIndex(t => t.id == e.id);
             // Only splice array if token is found
             if (index > -1) { 
                 // Remove token
-                this.tokens.splice(index, 1); 
+                this.tokens.splice(index, 1)
             }
             else {
                 throw new Error('[Token Gating] Failed to delete token')
@@ -164,53 +187,168 @@ export default class TokenGatingPlugin extends BasePlugin {
         console.groupEnd()
     }
 
+    /** Constructs an API query based on a token's parameters */
+    constructQuery(userID, token) {
+
+        // initialize query
+        let query = null
+        
+        // If token belongs to vatom network
+        if(token.network == 'vatom') {
+                
+            // Check vatom token type
+            if(token.type == 'nft') {
+
+                // Check if necessary field are not null
+                if(!token.campaignID || !token.objectID){
+                    console.warn(`[Token Gating] No CampaignID or Object ID found for the following Vatom smart NFT token: ${token}`)
+                    return
+                }
+
+                // Construct Allowl query object
+                query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":userID,"campaign":token.campaignID,"objectDefinition":token.objectID}}, token.minAmountHeld]}}
+
+            }
+            else {
+
+                // Check if necessary field are not null
+                if(!token.businessID) {
+                    console.warn(`[Token Gating] No Business ID found for the following Vatom coin token: ${token}`)
+                    return
+                }
+
+                // Construct Allowl query object
+                query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":userID,"business":token.businessID}}, token.minAmountHeld]}}
+            }
+        }
+
+        return query
+    }
+
     onSpaceEnter = async () => {
 
-        let userID = await this.user.getID()
-        userID = userID.split(':').pop()
+        for(let token of this.tokens) {
 
-        for(let token of this.tokens){
-
-            // If token's vatomID is null or empty continue
-            if (!token.vatomID || token.vatomID == '') {
-                console.warn(`[Token Gating] No VatomID found for the following token: ${token}`)
+            // If token has zoneID field then continue
+            if(token.zoneID) {
                 continue
             }
 
-            // Construct query
-            let query = {query: {"fn":"get-vatoms","owner":userID}}
-            if(token.businessID) query.query['business'] = token.businessID
-            if(token.campaignID) query.query['campaign'] = token.campaignID
-            if(token.objectID) query.query['objectDefinition'] = token.objectID
+            // Construct query based on token parameters for given user ID
+            let query = this.constructQuery(this.userID, token)
 
-            // Fetch vatoms returned from query
+            // Return if query wasn't set
+            if(!query) {
+                return console.error('[Token Gating] API query is null or undefined')
+            }
+
+            // Pass our query to Allowl API
             let response = await this.user.queryAllowlPermission(query)
 
-            // console.group("Allowl Response")
-            // console.debug("Vatom Returned: ", response.result)
-            // console.groupEnd()
+            console.group("Allowl Response")
+            console.debug("Response: ", response)
+            console.groupEnd()
 
-            // Iterate through all returned vatoms
-            for(let vatom of response.result) {
-    
-                if(vatom.id == token.vatomID ){
-                    console.debug(`[Token Gating] Entry Granted. User has the correct tokens in their wallet.`)
-                    return
-                }
+            // If response returns true let user in, otherwise deny access
+            if(response.result == true) {
+                console.debug(`[Token Gating] Entry Granted. User has the correct tokens in their wallet.`)
+                return
+            }
+            else {
+                throw new Error(`[Token Gating] Entry Denied. User does not possess the correct tokens in their wallet.`)
             }
         } 
         
-        throw new Error(`[Token Gating] Entry Denied. User does not have the correct tokens in their wallet.`)
     }
 
-}
+    // Check if user is inside region that is token gated
+    async userInsideRegion(zoneID) {
 
-class TokenGatingComponent extends BaseComponent {
+        // Get user position
+        let pos = await this.user.getPosition()
+        let regionCache = {}
 
-    // TODO: Will be attached to zones in order to token gate areas
+        // Get region position
+        let region = regionCache[zoneID]
+        if (!region) {
 
-    onLoad() {
+            // Get region info
+            region = await this.objects.get(zoneID)
+            regionCache[zoneID]
+
+            // Stop if region not found
+            if (!region) {
+                console.warn(`[Token Gating] no region with Zone ID ${zoneID} was found.`)
+                return
+            }
+
+        }
+
+        // Check if within region
+        let minX = region.world_center_x - region.world_bounds_x/2
+        let minY = region.world_center_y - region.world_bounds_y/2
+        let minZ = region.world_center_z - region.world_bounds_z/2
+        let maxX = region.world_center_x + region.world_bounds_x/2
+        let maxY = region.world_center_y + region.world_bounds_y/2
+        let maxZ = region.world_center_z + region.world_bounds_z/2
+        let insideRegion = pos.x > minX && pos.x < maxX && pos.y > minY && pos.y < maxY && pos.z > minZ && pos.z < maxZ
+
+        return insideRegion
 
     }
+
+    /** Token gate regions specified by tokens */
+    gateRegions = async () => {
+    
+        // Filter out all tokens that don't have an assigned zoneID
+        let regionTokens = this.tokens.filter(t => t.zoneID)
+        
+        // Return if no tokens specify a zoneID
+        if(regionTokens.length == 0){
+            return
+        }
+
+        // Iterate through all region blocking tokens
+        for(let token of regionTokens) {
+
+            // Check if current user is inside zone specified by token
+            let userInsideRegion = await this.userInsideRegion(token.zoneID)
+            if(userInsideRegion) {
+
+                if(!this.currentRegionCheck) {
+                    
+                    // Construct query based on token parameters
+                    let query = this.constructQuery(this.userID, token)
+
+                    // Pass our query to Allowl API
+                    let response = await this.user.queryAllowlPermission(query)
+
+                    // Track reference to API result
+                    this.currentRegionAccess = response.result
+
+                    console.debug(`[Token Gating] Entry ${response.result ? 'Granted' : 'Denied'} to region with ID: ${token.zoneID}`)                    
+
+                    this.currentRegionCheck = true
+
+                }
+
+                // If we have checked the current region and denied access then kick user out
+                if(this.currentRegionCheck && !this.currentRegionAccess) {
+                    let position = await this.user.getPosition()
+                    this.user.setPosition(position.x - 2, position.y, position.z - 2)
+                }
+
+                return
+
+            }
+            else {
+                if(this.checkedCurrentRegion) this.checkedCurrentRegion = false
+                if(this.currentRegionAccess) this.currentRegionAccess = false
+            }
+           
+        }
+
+    }
+
 
 }
