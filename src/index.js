@@ -214,14 +214,19 @@ export default class TokenGatingPlugin extends BasePlugin {
             else {
 
                 // Check if necessary field are not null
-                if(!token.businessID) {
-                    console.warn(`[Token Gating] No Business ID found for the following Vatom coin token: ${token}`)
-                    return
+                if(token.businessID) {
+                    // Construct Allowl query object
+                    query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":userID,"business":token.businessID}}, token.minAmountHeld]}}
+                }
+                else{
+                    console.warn(`[Token Gating] No Business ID found for the following Vatom coin token: ${token} querying all Vatom Smart NFTs`)
+                    query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":userID}}, token.minAmountHeld]}}
                 }
 
-                // Construct Allowl query object
-                query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":userID,"business":token.businessID}}, token.minAmountHeld]}}
             }
+        }
+        else {
+            query = {query: {"gte":[{"count":{"fn":"get-eth-nfts","owner":'<ERC ADDRESS>'}}, token.minAmountHeld]}}
         }
 
         return query
@@ -229,6 +234,11 @@ export default class TokenGatingPlugin extends BasePlugin {
 
     onSpaceEnter = async () => {
 
+        // Counters to keep track of how many tokens have granted/denied access
+        let accessGranted = 0
+        let accessDenied = 0
+
+        // Iterate through all tokens
         for(let token of this.tokens) {
 
             // If token has zoneID field then continue
@@ -253,12 +263,34 @@ export default class TokenGatingPlugin extends BasePlugin {
 
             // If response returns true let user in, otherwise deny access
             if(response.result == true) {
-                console.debug(`[Token Gating] Entry Granted. User has the correct tokens in their wallet.`)
-                return
+                
+                // If condition is 'and', only grant access if all tokens are possessed
+                if(this.multiCondition == 'and') {
+                    accessGranted++
+                    if(this.tokens.length == accessGranted){
+                        console.debug(`[Token Gating] Entry Granted. User possesses the correct tokens in their wallet.`)
+                        return
+                    }
+                }
+                else { // Otherwise, condition is 'or' so if any token is possessed, simply grant access
+                    console.debug(`[Token Gating] Entry Granted. User possesses a correct token in their wallet.`)
+                    return
+                }
             }
             else {
-                throw new Error(`[Token Gating] Entry Denied. User does not possess the correct tokens in their wallet.`)
-            }
+                // If condition is 'and', simply throw error
+                if(this.multiCondition == 'and'){
+                    throw new Error(`[Token Gating] Entry Denied. User does not possess the correct tokens in their wallet.`)
+                }
+                else { // Otherwise, condition is 'or' so only throw error if no tokens are possessed
+                    accessDenied++
+                    if(this.tokens.length == accessDenied) {
+                        throw new Error(`[Token Gating] Entry Denied. User does not possess any correct tokens in their wallet.`)
+                    }
+                }
+               
+            } 
+           
         } 
         
     }

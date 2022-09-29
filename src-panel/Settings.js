@@ -5,9 +5,9 @@ export default class Settings extends React.PureComponent {
      
     state = {
         // TODO: Passing in settings via props is crashing panel on open (dateFrom is null?)
-        dateFrom: /*this.props.settings.dateFrom ||*/ '',
-        dateTo: /*this.props.settings.dateTo ||*/ '',
-        multiCondition: /*this.props.settings.multiCondition ||*/ 'and'
+        dateFrom: this.props.settings.dateFrom || null,
+        dateTo: this.props.settings.dateTo || null,
+        multiCondition: this.props.settings.multiCondition || 'and'
 
     }
 
@@ -35,11 +35,11 @@ export default class Settings extends React.PureComponent {
         </div>
 
         <Field name='Time / Date From (optional)' help='Time / Date from which tokens are active'>
-            <Input type='text' value={this.state.dateFrom ?? ''} onValue={v => this.updateSettings({dateFrom: v})} help='Time / Date from which tokens are active' />
+            <Input disabled={true} type='text' value={this.state.dateFrom ?? ''} onValue={v => this.updateSettings({dateFrom: v})} help='Time / Date from which tokens are active' />
         </Field>
 
         <Field name='Time / Date To (optional)' help='Time / Date to which tokens will be active'>
-            <Input type='text' value={this.state.dateTo ?? ''} onValue={v => this.updateSettings({dateTo: v})} help='Time / Date to which tokens will be active' />
+            <Input disabled={true} type='text' value={this.state.dateTo ?? ''} onValue={v => this.updateSettings({dateTo: v})} help='Time / Date to which tokens will be active' />
         </Field>
 
         <Field name='Multi-Token Condition' help='Decides wether any or all tokens are needed to grant access'>

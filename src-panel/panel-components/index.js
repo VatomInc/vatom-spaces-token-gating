@@ -80,8 +80,25 @@ import Swal from 'sweetalert2'
     }
 
     // Render UI
-    return <div onClick={edit} style={{ backgroundColor: 'rgba(0, 0, 0, 0.25', opacity: props.disabled ? 0.45 : 1, borderRadius: 4, padding: '5px 10px', marginRight: 10, fontSize: 12, color: '#FFFFFF', wordBreak: 'break-word', lineHeight: '1.4', cursor: isClickable ? 'pointer' : 'default', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'hidden', userSelect: 'text', WebkitUserSelect: 'text' }}>
+    return <div onClick={edit} style={Object.assign({ 
+        backgroundColor: 'rgba(0, 0, 0, 0.25', 
+        opacity: props.disabled ? 0.45 : 1, 
+        borderRadius: 4, 
+        padding: '5px 10px', 
+        marginRight: 10, 
+        fontSize: 11, 
+        color: '#FFFFFF', 
+        wordBreak: 'break-word', 
+        lineHeight: '1.4', 
+        cursor: isClickable ? 'pointer' : 'default', 
+        whiteSpace: 'pre-wrap', 
+        maxHeight: 200, 
+        overflow: 'hidden', 
+        userSelect: 'text', 
+        WebkitUserSelect: 'text' }, props.style)}>
+
         { getValue() }
+
     </div>
 
 }
@@ -114,7 +131,7 @@ import Swal from 'sweetalert2'
     // Render UI
     return <div style={{ display: 'flex', position: 'relative', marginTop: 4 }}>
         <div style={{ display: 'flex', flex: '1 1 auto', height: 'fit-content', alignItems: 'center' }}>
-            <div style={{ flex: '1 1 auto', padding: '7px 0px 7px 10px', color: '#FFFFFF', fontSize: 13 }}>
+            <div style={{ flex: '1 1 auto', padding: '7px 0px 7px 10px', color: '#FFFFFF', fontSize: 12 }}>
                 { props.name }
             </div>
 
@@ -124,7 +141,7 @@ import Swal from 'sweetalert2'
             }
         </div>
 
-        <div style={{ flex: '0 0 auto', width: props.name ? (props.otherWidth || '40%') : '100%', fontSize: 13, alignSelf: 'center' }}>
+        <div style={Object.assign({ flex: '0 0 auto', width: props.name ? (props.otherWidth || '40%') : '100%', fontSize: 13, alignSelf: 'center' }, props.style)}>
             { props.children }
         </div>
     </div>
@@ -178,7 +195,7 @@ import Swal from 'sweetalert2'
  * @param {React.CSSProperties=} props.style Optional. Additional styling to apply to the select component.
  */
  export const Select = props => <div style={Object.assign({ display: 'flex', position: 'relative', alignItems: 'center' }, props.style)}>
-    <select disabled={!!props.disabled} value={typeof props.value == 'number' ? props.value ?? '' : props.value || ''} onChange={e => props.onValue(e.target.value)} style={{ WebkitAppearance: 'none', backgroundColor: 'rgba(0, 0, 0, 0.25)', borderRadius: 4, border: 'none', padding: '5px 10px', marginRight: 10, fontFamily: 'Inter', fontSize: 12, color: '#FFFFFF', wordBreak: 'break-word', lineHeight: '1.4', cursor: 'pointer', width: 'calc(100% - 10px)' }}>
+    <select disabled={!!props.disabled} value={typeof props.value == 'number' ? props.value ?? '' : props.value || ''} onChange={e => props.onValue(e.target.value)} style={{ WebkitAppearance: 'none', backgroundColor: 'rgba(0, 0, 0, 0.25)', borderRadius: 4, border: 'none', padding: '5px 10px', marginRight: 10, fontSize: 12, color: '#FFFFFF', wordBreak: 'break-word', lineHeight: '1.4', cursor: 'pointer', width: 'calc(100% - 10px)' }}>
         { (props.items || []).map((name, idx) => {
             // Get details
             let value = props.values && props.values[idx];
@@ -206,14 +223,16 @@ const minimizeDecimals = num => Math.round(num * 100) / 100
  */
 export const LabeledSwitch = props => {
 
+    let switchAmount = 81
+
     // Called when component is mounted
     useEffect(() => {
-        props.direction == 'left' ? setXpos(60) : setXpos(0)
+        props.direction == 'left' ? setXpos(switchAmount) : setXpos(0)
     }, [xPos]);
 
     // Called onClick
     function onClick (direction){   
-        direction == 'left' ? setXpos(x => x - 60) : setXpos(x => x + 60)
+        direction == 'left' ? setXpos(x => x - switchAmount) : setXpos(x => x + switchAmount)
         setStyle({transform: `translateX(${xPos}px)`})
         direction = getOppositeDirection(direction)
         setDirection(direction)
@@ -230,26 +249,27 @@ export const LabeledSwitch = props => {
     
     // Component fields
     const [direction, setDirection] = useState(props.direction || 'left')
-    const [xPos, setXpos] = useState(props.direction == 'left' ? 0 : 60)
+    const [xPos, setXpos] = useState(props.direction == 'left' ? 0 : switchAmount)
     const [style, setStyle] = useState({transform: `translateX(${xPos}px)`});
 
     return <div onClick={e => onClick(direction)} style={Object.assign({  
         display: 'flex',
         alignItems: 'center',
         margin: '30px auto',
-        width: 130, 
+        width: 160, 
         height: 30, 
         cursor: 'pointer',
         backgroundColor: props.backgroundColor ? props.backgroundColor : '#FFFFFF',
         borderRadius: 40, 
         userSelect: 'none',
+        WebkitUserSelect: 'none',
         }, props.style)}>  
 
-        <div style={Object.assign({width: 65, height: 25, transition: 'transform 250ms', backgroundColor: '#FC500E', borderRadius: 40, border: '2px solid #E9ECEF'}, style)} />
+        <div style={Object.assign({marginLeft: 1, width: 72, height: 25, transition: 'transform 250ms', backgroundColor: '#FC500E', borderRadius: 40, border: '2px solid #E9ECEF'}, style)} />
         
         <div style={{position: 'absolute'}}>
             <div style={{float: 'left', marginLeft: 10, fontSize: 10, color: direction == 'left' ? '#FFFFFF' : '#3F4A55'}}>{props.labelLeft}</div>
-            <div style={{float: 'right', marginLeft: 28, fontSize: 10, color: direction == 'right' ? '#FFFFFF' : '#3F4A55'}}>{props.labelRight}</div>
+            <div style={{float: 'right', marginLeft: 43, fontSize: 10, color: direction == 'right' ? '#FFFFFF' : '#3F4A55'}}>{props.labelRight}</div>
         </div>      
         
     </div>

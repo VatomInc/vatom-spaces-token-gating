@@ -44,7 +44,7 @@ class App extends React.PureComponent {
     /** Render */
     render = () => <>
 
-        {/* <Settings settings={this.state.settings}/> */}
+        {this.state.settings ? <Settings settings={this.state.settings}/> : null}
         {this.state.tokens ? <TokenList tokens={this.state.tokens}/> : null}
      
     </>
@@ -54,6 +54,7 @@ class App extends React.PureComponent {
 // Render app
 let appContainer = document.createElement('div')
 appContainer.id = 'react-app'
+appContainer.style.fontFamily = "Inter, Verdana, Arial";
 document.body.appendChild(appContainer)
 let root = createRoot(appContainer)
 root.render(<App />)

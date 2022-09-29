@@ -31,7 +31,18 @@ export default class TokenList extends React.PureComponent {
         let name = "Token " + tokenNum
 
         // New token (default fields)
-        let token = {id: id, name: name, network: 'vatom', type: 'nft', campaignID: null, objectID: null, businessID: null, minAmountHeld: 1}
+        let token = {id: id, 
+            name: name, 
+            network: 'vatom', 
+            type: 'nft', 
+            campaignID: null, 
+            objectID: null, 
+            businessID: null, 
+            minAmountHeld: 1,
+            contactAddress: null,
+            heldSince: null,
+            multiTraitCondition: 'and',
+            traits: []}
 
         // Send new token to plugin
         window.parent.postMessage({action: 'add-token', token: token}, '*');
