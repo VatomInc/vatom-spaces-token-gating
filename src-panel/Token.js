@@ -1,8 +1,19 @@
 import React from 'react';
-import {Input, Field, Select, Button, LabeledSwitch} from './panel-components'
-import { v4 as uuidv4 } from 'uuid' 
+import {Input, Field, Select, Button, LabeledSwitch, DateTimePicker} from './panel-components'
+import { v4 as uuidv4 } from 'uuid'
+import algoliasearch from 'algoliasearch'
+import Swal from 'sweetalert2';
+import constants from '../src/constants'
 
 export default class Token extends React.PureComponent {
+
+    // Relevant fields for algolia search
+    hostName = window.location.host
+    isDevDomain = this.hostName.includes(constants.domains.dev)
+    isTestDomain = this.hostName.includes(constants.domains.test)
+    algoliaAppID = this.isTestDomain ? constants.algolia.appId.dev : this.isDevDomain ? constants.algolia.appId.dev : constants.algolia.appId.prod
+    algoliaKey = this.isTestDomain ? constants.algolia.key.dev : this.isDevDomain ? constants.algolia.key.dev : constants.algolia.key.prod
+ 
      
     state = {
         id: this.props.token.id,
@@ -55,6 +66,37 @@ export default class Token extends React.PureComponent {
         let traits = this.state.traits.filter(t => t.id != id)
         this.updateToken({traits: traits})
     }
+
+    // TODO: Get contract address validation working
+    /** Validates if given contract address exists */
+    async validateContractAddress(address) {
+
+        console.log('[Token Gating] Validating contract address')
+
+        console.log('[Token Gating] AlgoliaAppID: ', this.algoliaAppID)
+        console.log('[Token Gating] AlgoliaKey: ', this.algoliaKey)
+
+        const client = await algoliasearch(this.algoliaAppID, this.algoliaKey)
+
+        console.log('[Token Gating] Client', client)
+
+        let userIndex = client.initIndex("users")
+
+        console.log('userIndex 1: ', userIndex)
+
+        userIndex.search(address, ["identities.type:eth"])
+        console.log('userIndex 2: ', userIndex)
+        
+        // If invalid, show popup
+        if(!userIndex) {
+            console.error("[Token Gating] Contract Address is not valid")
+            Swal.fire('Invalid Contract Address', 'You have entered an invalid contract address for the NFT collections you wish to use as token keys. Please enter the correct contract address in the field below.', 'error')
+        }
+
+        // Update Token
+        console.debug("[Token Gating] Contract Address is valid")
+        this.updateToken({contactAddress: address})
+    }
     
     /** Render */
     render = () => 
@@ -91,19 +133,18 @@ export default class Token extends React.PureComponent {
                         </Field>
                     </> : 
                     <>
-                        <Field name='Business ID' help='Input the business ID of the NFT that you wish to associate with this token.'>
-                            <Input type='text' value={this.state.businessID ?? ''} onValue={v => this.updateToken({businessID: v})} help='Enter the Business ID of the Vatom coin collection that you wish to use as token keys.' />
+                        <Field name='Business ID (optional)' help='The Business ID of the Vatom coin collection that you wish to use as coin token keys.'>
+                            <Input type='text' value={this.state.businessID ?? ''} onValue={v => this.updateToken({businessID: v})} help='Enter the Business ID of the Vatom coin collection that you wish to use as coin token keys.' />
                         </Field>
                     </>}
 
                 </> : <>
                 
-                    <Field name='Contact Address:' help='Contract address for the NFT collection you wish to use as token keys.' />
-                    <Input style={{marginLeft: 10, marginBottom: 5}} type='text' value={this.state.contactAddress ?? ''} onValue={v => this.updateToken({contactAddress: v})} help={'Enter the contract address for the NFT collection you wish to use as token keys.'}/>
+                    <Field name='Contact Address' help='Contract address for the NFT collection you wish to use as token keys.' />
+                    <Input style={{marginLeft: 10, marginBottom: 5}} type='text' value={this.state.contactAddress ?? ''} onValue={v => this.validateContractAddress(v)} help={'Enter the contract address for the NFT collection you wish to use as token keys.'}/>
 
-                
-                    <Field name='Held Since (optional):' help='Date from which this token must have been first held'>
-                        <Input type='text' value={this.state.heldSince ?? ''} onValue={v => this.updateToken({heldSince: v})} help={'Enter the date from which this token must have been first held'}/>
+                    <Field style={{width: '60%'}} name='Held Since (optional)' help='Date from which this token must have been first held'>
+                        <DateTimePicker disabled={true} value={this.state.heldSince} onValue={v => this.updateSettings({heldSince: v.target.value})} />
                     </Field>
                 
                 </>}
@@ -118,33 +159,37 @@ export default class Token extends React.PureComponent {
                     <Input type='number' value={this.state.minAmountHeld ?? 1} onValue={v => this.updateToken({minAmountHeld: v})} help='Enter the minimum amount of token keys required to grant access.' />
                 </Field>
 
-                <hr style={{ width: 'calc(100% - 40px)', color: 'rgb(255, 255, 255)', opacity: 0.2 }} />
-
-                <div style={{fontSize: 16, color: '#868E96', marginLeft: 8, fontFamily: 'Inter'}}>Traits (Optional)</div>
-
-                <Field name='Multi-Trait Condition' help='Decides wether any or all traits are needed'>
-                    <Select disabled={this.state.traits.length <= 1} value={this.state.multiTraitCondition} onValue={v => this.updateToken({multiTraitCondition: v})} items={['And', 'Or']} values={['and', 'or']} />
-                </Field>
-
-                <div style={{padding: '10px 0px'}}/>
-
-                {this.state.traits.map(trait => <>
+                {this.state.type != 'coin' ? <>
                 
-                    <Field style={{display: 'flex', width: '50%'}} name={trait.name} help={`A trait that a user's token must have in order to grant access`}>
-                        <Input style={{padding: '5px 23px'}} type='text' value={trait.key} onValue={v => this.updateToken({})} help={`Enter the key of the required trait for this token`}/>
-                        <Input style={{padding: '5px 23px'}} type='text' value={trait.value} onValue={v => this.updateToken({})} help={`Enter the value of the required trait for this token`}/>
-                        <img style={{cursor: 'pointer', transform: 'translateY(5px)'}} width={16} height={16} src={require('./trash.svg')} onClick={e => this.deleteTrait(trait.id)}/>
+                    <hr style={{ width: 'calc(100% - 40px)', color: 'rgb(255, 255, 255)', opacity: 0.2 }} />
+
+                    <div style={{fontSize: 16, color: '#868E96', marginLeft: 8}}>Traits (Optional)</div>
+
+                    <Field name='Multi-Trait Condition' help='Decides wether any or all traits are needed'>
+                        <Select disabled={this.state.traits.length <= 1} value={this.state.multiTraitCondition} onValue={v => this.updateToken({multiTraitCondition: v})} items={['And', 'Or']} values={['and', 'or']} />
                     </Field>
-                
-                </>)}
 
-                <div style={{marginTop: 10, marginRight: 5, display: 'flex', justifyContent: 'flex-end', alignItems: 'center'}}>
-                    <div style={{cursor: 'pointer', display: 'flex', alignItems: 'center'}} onClick={e => this.addTrait()}>
-                        <div style={{fontSize: 12, color: '#868E96'}}>Add Another Trait</div>
-                        <div style={{padding: '0px 5px'}}/>
-                        <div style={{fontSize: 25, color: '#868E96', transform: 'translateY(-2px)'}}>+</div>
+                    <div style={{padding: '10px 0px'}}/>
+
+                    {this.state.traits.map(trait => <>
+                    
+                        <Field style={{display: 'flex', width: '50%'}} name={trait.name} help={`A trait that a user's token must have in order to grant access`}>
+                            <Input style={{padding: '5px 23px'}} type='text' value={trait.key} onValue={v => this.updateToken({})} help={`Enter the key of the required trait for this token`}/>
+                            <Input style={{padding: '5px 23px'}} type='text' value={trait.value} onValue={v => this.updateToken({})} help={`Enter the value of the required trait for this token`}/>
+                            <img style={{cursor: 'pointer', transform: 'translateY(5px)'}} width={16} height={16} src={require('./trash.svg')} onClick={e => this.deleteTrait(trait.id)}/>
+                        </Field>
+                    
+                    </>)}
+
+                    <div style={{marginTop: 10, marginRight: 5, display: 'flex', justifyContent: 'flex-end', alignItems: 'center'}}>
+                        <div style={{cursor: 'pointer', display: 'flex', alignItems: 'center'}} onClick={e => this.addTrait()}>
+                            <div style={{fontSize: 12, color: '#868E96'}}>Add Another Trait</div>
+                            <div style={{padding: '0px 5px'}}/>
+                            <div style={{fontSize: 25, color: '#868E96', transform: 'translateY(-2px)'}}>+</div>
+                        </div>
                     </div>
-                </div>
+                
+                </> : null}
                
                 <Button title='Delete Token' onClick={e => this.deleteToken()} style={{color: '#FFFFFF', backgroundColor: '#fa525299', borderRadius: 3, height: 30}}/>
                 

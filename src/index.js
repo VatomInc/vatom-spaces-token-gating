@@ -17,11 +17,14 @@ export default class TokenGatingPlugin extends BasePlugin {
     // Array of all tokens
     tokens = []
 
+    // Determines if token gating is restricted to specific date/time range
+    restrictDate = false
+
     // Date from which tokens are active
-    fromDate = ''
+    dateFrom = null
 
     // Date to which tokens will be active
-    toDate = ''
+    dateTo = null
 
     // Determines if all or any of our tokens are necessary to grant access
     multiCondition = 'and'
@@ -79,13 +82,17 @@ export default class TokenGatingPlugin extends BasePlugin {
         let savedTokens = this.getField('tokens')
         if(savedTokens) this.tokens = savedTokens
 
-        // Get saved fromDate
-        let fromDate = this.getField('fromDate')
-        if(fromDate) this.fromDate = fromDate
+        // Get saved restrictDate
+        let restrictDate = this.getField('restrictDate')
+        if(restrictDate) this.restrictDate = restrictDate
 
-        // Get saved toDate
-        let toDate = this.getField('toDate')
-        if(toDate) this.toDate = toDate
+        // Get saved dateFrom
+        let dateFrom = this.getField('dateFrom')
+        if(dateFrom) this.dateFrom = dateFrom
+
+        // Get saved dateTo
+        let dateTo = this.getField('dateTo')
+        if(dateTo) this.dateTo = dateTo
 
         // Get saved multi-condition
         let multiCondition = this.getField('multiCondition')
@@ -106,29 +113,34 @@ export default class TokenGatingPlugin extends BasePlugin {
 
         if(e.action == 'get-settings'){
             console.debug('[Token Gating] Sending settings to panel')
-            let settings = {dateFrom: this.dateFrom, dateTo: this.dateTo, multiCondition: this.multiCondition}
+            let settings = {restrictDate: this.restrictDate, dateFrom: this.dateFrom, dateTo: this.dateTo, multiCondition: this.multiCondition}
             this.menus.postMessage({action: 'send-settings', settings: settings}, '*')
         }
 
         // Updating token gating settings 
-        if(e.action == 'update-settings'){
+        if(e.action == 'update-settings') {
+
+            if(e.restrictDate != null) {
+                this.restrictDate = e.restrictDate
+                await this.setField('restrictDate', this.restrictDate)
+            }
             
-            // Set fromDate setting
-            if(e.fromDate) {
-                this.fromDate = e.fromDate
-                await this.setField('fromDate', this.fromDate)
+            // Set dateFrom setting
+            if(e.dateFrom) {
+                this.dateFrom = e.dateFrom
+                await this.setField('dateFrom', this.dateFrom)
             }
 
-            // Set toDate setting
-            if(e.toDate) {
-                this.toDate = e.toDate
-                await this.setField('toDate', this.toDate)
+            // Set dateTo setting
+            if(e.dateTo) {
+                this.dateTo = e.dateTo
+                await this.setField('dateTo', this.dateTo)
             }
 
             // Set multi-condition setting
             if(e.multiCondition) {
                 this.multiCondition = e.multiCondition
-                await this.setField('toDate', this.toDate)
+                await this.setField('dateTo', this.dateTo)
             }
         }
 
@@ -183,9 +195,9 @@ export default class TokenGatingPlugin extends BasePlugin {
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
         }
 
-        console.group('[Token Gating] New Tokens')
-        console.log(this.tokens)
-        console.log(this.getField('tokens'))
+        console.group('[Token Gating] Updated Tokens')
+        console.log("[Plugin] ",this.tokens)
+        console.log("[Server] ", this.getField('tokens'))
         console.groupEnd()
     }
 
@@ -203,19 +215,34 @@ export default class TokenGatingPlugin extends BasePlugin {
 
                 // Check if necessary field are not null
                 if(!token.campaignID || !token.objectID){
-                    console.warn(`[Token Gating] No CampaignID or Object ID found for the following Vatom smart NFT token: ${token}`)
+                    console.error(`[Token Gating] No CampaignID or Object ID found for the following Vatom smart NFT token: ${token}`)
                     return
                 }
 
-                // Construct Allowl query object
-                query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":userID,"campaign":token.campaignID,"objectDefinition":token.objectID}}, token.minAmountHeld]}}
+                // TODO: Add support for multiple trait filtering
 
+                // Construct Allowl query for Vatom Smart NFT
+                if(token.traits && token.traits.length > 0) {
+                    
+                    // If trait key or value is not filled in. return trait-less query
+                    if(!token.traits[0].key || token.traits[0].value){
+                        console.error(`[Token Gating] ${token.name} has a trait with a key or value equaling null. {key: ${token.traits[0].key}, value: ${token.traits[0].value}}. Defaulting to trait-less query.`)
+                        query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":userID,"campaign":token.campaignID,"objectDefinition":token.objectID}}, token.minAmountHeld]}}
+                        return query
+                    }
+
+                    query = {query: {"gte":[{"count":{"filter":{"fn":"get-vatoms","owner":userID,"campaign":token.campaignID,"objectDefinition":token.objectID}, "by": {"eq": [token.traits[0].value, {"select": ["$it", "attributes", token.traits[0].key]}]}}}, token.minAmountHeld]}}
+                }
+                else {
+                    // Construct Allowl query for vatom smart NFT
+                    query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":userID,"campaign":token.campaignID,"objectDefinition":token.objectID}}, token.minAmountHeld]}}
+                }
+               
             }
             else {
 
-                // Check if necessary field are not null
+                // Construct Allowl query for vatom coins
                 if(token.businessID) {
-                    // Construct Allowl query object
                     query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":userID,"business":token.businessID}}, token.minAmountHeld]}}
                 }
                 else{
@@ -226,12 +253,51 @@ export default class TokenGatingPlugin extends BasePlugin {
             }
         }
         else {
-            query = {query: {"gte":[{"count":{"fn":"get-eth-nfts","owner":'<ERC ADDRESS>'}}, token.minAmountHeld]}}
+
+            // TODO: Add support for "held since" token setting
+            
+            // TODO: Add support for multiple trait filtering
+            // Construct Allowl query for Ethereum NFT
+            if(token.traits && token.traits.length > 0) {
+
+                // If trait key or value is not filled in. return trait-less query
+                if(!token.traits[0].key || token.traits[0].value){
+                    console.error(`[Token Gating] ${token.name} has a trait with a key or value equaling null. {key: ${token.traits[0].key}, value: ${token.traits[0].value}}. Defaulting to trait-less query.`)
+                    query = {query: {"gte":[{"count":{"fn":"get-eth-nfts","owner":{ "any": { "fn": "get-idens", "type": "eth", "owner": userID }, "by": { "gt": [{ "count": { "fn": "get-eth-nfts", "owner": "$it.value" } }, 0] } }}}, token.minAmountHeld]}}
+                    return query
+                }
+
+                query = {query: {"gte":[{"count":{"filter":{"fn":"get-eth-nfts","owner":{ "any": { "fn": "get-idens", "type": "eth", "owner": userID }, "by": { "gt": [{ "count": { "fn": "get-eth-nfts", "owner": "$it.value" } }, 0] } }}, "by": [token.traits[0].value, {"select": ["$it", "attributes", token.traits[0].key]}]}}, token.minAmountHeld]}}
+            }
+            else {
+                query = {query: {"gte":[{"count":{"fn":"get-eth-nfts","owner":{ "any": { "fn": "get-idens", "type": "eth", "owner": userID }, "by": { "gt": [{ "count": { "fn": "get-eth-nfts", "owner": "$it.value" } }, 0] } }}}, token.minAmountHeld]}}
+            }
         }
 
         return query
     }
 
+    /** Formats date string returned from calendar component into date object */
+    formatDateString(date) {
+
+        if(!date) {
+            console.warn("[Token Gating] Attempted to format date but date was null")
+            return null
+        }
+                    
+        let yearMonthDay = this.dateFrom.split('T')[0]
+        yearMonthDay = yearMonthDay.split('-')
+        yearMonthDay = yearMonthDay.map(Number)
+        
+        let time = date.split('T')[1]
+        time = time.split(':')
+        time - time.map(Number)
+        
+        let dateObject = new Date(yearMonthDay[0], yearMonthDay[1]-1, yearMonthDay[2], time[0], time[1])
+        return dateObject
+    }
+
+    /** Called when user enters the space */
     onSpaceEnter = async () => {
 
         // Counters to keep track of how many tokens have granted/denied access
@@ -263,6 +329,29 @@ export default class TokenGatingPlugin extends BasePlugin {
 
             // If response returns true let user in, otherwise deny access
             if(response.result == true) {
+
+                if(this.restrictDate) {
+
+                    let currentDate = new Date()
+                    let dateFrom = this.formatDateString(this.dateFrom)
+                    let dateTo = this.formatDateString(this.dateTo)
+         
+                    // If current date is before dateFrom restriction
+                    if(dateFrom) {
+                        if(currentDate < dateFrom) {
+                            throw new Error(`[Token Gating] Entry Denied. Tokens for this space will only activate post the following date and time: ${dateFrom}`)
+                        }
+                    }
+
+                    // If current date is after dateTo restriction
+                    if(dateTo) {
+                        if(currentDate > dateTo) {
+                            throw new Error(`[Token Gating] Entry Denied. Tokens for this space are no longer active post the following date and time: ${dateTo}`)
+                        }
+                    }
+         
+         
+                }
                 
                 // If condition is 'and', only grant access if all tokens are possessed
                 if(this.multiCondition == 'and') {
@@ -353,7 +442,7 @@ export default class TokenGatingPlugin extends BasePlugin {
                 if(this.removingUser)
                     return
 
-                // If we have checked the current region and denied access then kick user out
+                // If we have checked the current region and denied access, then kick user out
                 if(this.currentRegionCheck && !this.currentRegionAccess) {
 
                     // If we know user's last position before entering zone
@@ -364,7 +453,12 @@ export default class TokenGatingPlugin extends BasePlugin {
                             this.removingUser = true
                             // Set user position to last recorded position before entering zone
                             this.user.setPosition(this.lastUserPosition.x, this.lastUserPosition.y, this.lastUserPosition.z)
-                            this.menus.alert('Entry to region denied', "You do not possess the correct token required to enter this region", 'error')
+                            if(this.dateTimeBlocked) {
+                                this.menus.alert('Entry to region denied', `The Token assigned to this region is only valid between ${this.dateFrom ? this.dateFrom : 'any time'} and ${this.dateTo ? this.dateTo : 'any time'}`, 'error')
+                            }
+                            else {
+                                this.menus.alert('Entry to region denied', "You do not possess the correct token required to enter this region", 'error')
+                            }
                         }
             
                     }
@@ -388,6 +482,35 @@ export default class TokenGatingPlugin extends BasePlugin {
                     // Track reference to API result
                     this.currentRegionAccess = response.result
 
+                    if(this.currentRegionAccess) {
+                        
+                        if(this.restrictDate) {
+
+                            let currentDate = new Date()
+                            let dateFrom = this.formatDateString(this.dateFrom)
+                            let dateTo = this.formatDateString(this.dateTo)
+                 
+                            // If current date is before dateFrom restriction
+                            if(dateFrom) {
+                                if(currentDate < dateFrom){
+                                    console.warn(`[Token Gating] Entry Denied. Tokens for this space will only activate post the following date and time: ${dateFrom}`)
+                                    this.dateTimeBlocked = true
+                                    this.currentRegionAccess = false
+                                }
+                            }
+        
+                            // If current date is after dateTo restriction
+                            if(dateTo) {
+                                if(currentDate > dateTo){
+                                    console.warn(`[Token Gating] Entry Denied. Tokens for this space are no longer active post the following date and time: ${dateTo}`)
+                                    this.dateTimeBlocked = true
+                                    this.currentRegionAccess = false
+                                }
+                            }
+                 
+                        }
+                    }
+
                     console.debug(`[Token Gating] Entry ${response.result ? 'Granted' : 'Denied'} to region with ID: ${token.zoneID}`)                    
 
                     this.currentRegionCheck = true
@@ -402,6 +525,7 @@ export default class TokenGatingPlugin extends BasePlugin {
                 if(this.currentRegionCheck) this.currentRegionCheck = false
                 if(this.currentRegionAccess) this.currentRegionAccess = false
                 if(this.removingUser) this.removingUser = false
+                if(this.dateTimeBlocked) this.dateTimeBlocked = false
                 this.lastUserPosition = await this.user.getPosition()
             }
            

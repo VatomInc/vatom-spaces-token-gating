@@ -81,7 +81,7 @@ import Swal from 'sweetalert2'
 
     // Render UI
     return <div onClick={edit} style={Object.assign({ 
-        backgroundColor: 'rgba(0, 0, 0, 0.25', 
+        backgroundColor: 'rgba(0, 0, 0, 0.25)', 
         opacity: props.disabled ? 0.45 : 1, 
         borderRadius: 4, 
         padding: '5px 10px', 
@@ -215,6 +215,16 @@ const minimizeDecimals = num => Math.round(num * 100) / 100
 
 /**
  * A simple checkbox.
+ * @param {object} props The checkbox properties.
+ * @param {boolean} props.on `true` to enable, `false` otherwise.
+ * @param {boolean} props.disabled `true` if the checkbox is disabled, `false` otherwise.
+ * @param {Function} props.onToggle Function to call with the new value on toggle.
+ * @param {string} props.backgroundColor Custom backround color value.
+ */
+ export const Checkbox = props => <div onClick={e => props.disabled ? null : (props.onToggle && props.onToggle(!props.on))} style={{ display: 'inline-block', width: 24, height: 24, cursor: props.disabled ? 'default' : 'pointer', opacity: props.disabled ? 0.45 : 1, backgroundColor: props.backgroundColor ? props.backgroundColor : 'rgba(0, 0, 0, 0.25)', borderRadius: 4, backgroundImage: props.on ? `url(${require('./check.svg')})` : 'none', backgroundPosition: 'center', backgroundSize: '16px 16px', backgroundRepeat: 'no-repeat' }} />
+
+/**
+ * A simple checkbox.
  * @param {object} props The switch properties.
  * @param {Function} props.onToggle Function to call when switch is toggled.
  * @param {string} props.backgroundColor Custom background color value.
@@ -273,4 +283,17 @@ export const LabeledSwitch = props => {
         </div>      
         
     </div>
+}
+
+/**
+ * A simple checkbox.
+ * @param {object} props The switch properties.
+ * @param {string} props.value The current value
+ * @param {Function} props.onChange Function to call when a change is made.
+ */
+export const DateTimePicker = props => {
+
+    return <>
+        <input value={props.value || 'yyyy/mm/dd, --:--'} onChange={props.disabled ? null : props.onValue} style={{opacity: props.disabled ? 0.45 : 1, backgroundColor: 'rgba(0, 0, 0, 0.25)', colorScheme:'dark', borderRadius: 4, cursor: props.disabled ? 'default' : 'pointer', border: 'none', height: 25}} type={'datetime-local'} required/>
+    </>
 }
