@@ -13,6 +13,7 @@ export default class TokenGatingPlugin extends BasePlugin {
     /** Plugin info */
     static id = "token-gating"
     static name = "Token Gating"
+    static description = "Enables the ability to token gate spaces and regions within spaces"
 
     // Array of all tokens
     tokens = []
