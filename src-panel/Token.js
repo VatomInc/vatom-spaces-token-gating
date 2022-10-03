@@ -25,7 +25,8 @@ export default class Token extends React.PureComponent {
         objectID: this.props.token.objectID || null,
         zoneID: this.props.token.zoneID || null,
         minAmountHeld: this.props.token.minAmountHeld || 1,
-        contactAddress: this.props.token.contactAddress || null,
+        contractAddress: this.props.token.contractAddress || null,
+        validAddress: this.props.token.validAddress || null,
         heldSince: this.props.token.heldSince || null,
         multiTraitCondition: this.props.token.multiTraitCondition || 'and',
         traits: this.props.token.traits || []
@@ -71,31 +72,32 @@ export default class Token extends React.PureComponent {
     /** Validates if given contract address exists */
     async validateContractAddress(address) {
 
-        console.log('[Token Gating] Validating contract address')
+        console.debug('[Token Gating] Validating contract address')
 
-        console.log('[Token Gating] AlgoliaAppID: ', this.algoliaAppID)
-        console.log('[Token Gating] AlgoliaKey: ', this.algoliaKey)
+        // console.log('[Token Gating] AlgoliaAppID: ', this.algoliaAppID)
+        // console.log('[Token Gating] AlgoliaKey: ', this.algoliaKey)
 
         const client = await algoliasearch(this.algoliaAppID, this.algoliaKey)
 
-        console.log('[Token Gating] Client', client)
-
         let userIndex = client.initIndex("users")
 
-        console.log('userIndex 1: ', userIndex)
+        userIndex.search(address, {"facetFilters": [["identities.type:eth"]]})
 
-        userIndex.search(address, ["identities.type:eth"])
-        console.log('userIndex 2: ', userIndex)
+        console.log("UserIndex: ", userIndex)
         
         // If invalid, show popup
         if(!userIndex) {
-            console.error("[Token Gating] Contract Address is not valid")
+            console.error("[Token Gating] Contract Address is invalid")
             Swal.fire('Invalid Contract Address', 'You have entered an invalid contract address for the NFT collections you wish to use as token keys. Please enter the correct contract address in the field below.', 'error')
+            this.updateToken({contractAddress: address})
+            this.updateToken({validAddress: false})
+            return
         }
 
         // Update Token
         console.debug("[Token Gating] Contract Address is valid")
-        this.updateToken({contactAddress: address})
+        this.updateToken({contractAddress: address})
+        this.updateToken({validAddress: true})
     }
     
     /** Render */
@@ -140,12 +142,12 @@ export default class Token extends React.PureComponent {
 
                 </> : <>
                 
-                    <Field name='Contact Address' help='Contract address for the NFT collection you wish to use as token keys.' />
-                    <Input style={{marginLeft: 10, marginBottom: 5}} type='text' value={this.state.contactAddress ?? ''} onValue={v => this.validateContractAddress(v)} help={'Enter the contract address for the NFT collection you wish to use as token keys.'}/>
+                    <Field name='Contract Address' help='Contract address for the NFT collection you wish to use as token keys.' />
+                    <Input style={{marginLeft: 10, marginBottom: 5}} cutOff={true} cutOffLength={30} type='text' icon={this.state.validAddress != null ? this.state.validAddress ? require('./valid.svg') : require('./invalid.svg') : null} value={this.state.contractAddress ?? ''} onValue={v => this.validateContractAddress(v)} help={'Enter the contract address for the NFT collection you wish to use as token keys.'}/>
 
-                    <Field style={{width: '60%'}} name='Held Since (optional)' help='Date from which this token must have been first held'>
+                    {/* <Field style={{width: '60%'}} name='Held Since (optional)' help='Date from which this token must have been first held'>
                         <DateTimePicker disabled={true} value={this.state.heldSince} onValue={v => this.updateSettings({heldSince: v.target.value})} />
-                    </Field>
+                    </Field> */}
                 
                 </>}
 

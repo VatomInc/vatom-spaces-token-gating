@@ -196,6 +196,15 @@ export default class TokenGatingPlugin extends BasePlugin {
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
         }
 
+        // Set tokens 
+        if(e.action == 'set-tokens'){
+            console.debug('[Token Gating] Setting token rules')
+            this.tokens = e.tokens
+            this.setField('tokens', this.tokens)
+            // Send updated token list back to panel
+            this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
+        }
+
         console.group('[Token Gating] Updated Tokens')
         console.log("[Plugin] ",this.tokens)
         console.log("[Server] ", this.getField('tokens'))
@@ -225,14 +234,23 @@ export default class TokenGatingPlugin extends BasePlugin {
                 // Construct Allowl query for Vatom Smart NFT
                 if(token.traits && token.traits.length > 0) {
                     
-                    // If trait key or value is not filled in. return trait-less query
-                    if(!token.traits[0].key || token.traits[0].value){
-                        console.error(`[Token Gating] ${token.name} has a trait with a key or value equaling null. {key: ${token.traits[0].key}, value: ${token.traits[0].value}}. Defaulting to trait-less query.`)
-                        query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":userID,"campaign":token.campaignID,"objectDefinition":token.objectID}}, token.minAmountHeld]}}
-                        return query
+                    let traits = []
+                    for(let trait of token.traits){
+                        if(trait.key && trait.value){
+                            traits.push(trait)
+                        }
+                        else{
+                            console.error(`[Token Gating] ${token.name} has a trait with a key or value equaling null. {key: ${token.traits[0].key}, value: ${token.traits[0].value}}. Ignoring this trait in query.`)
+                        }
                     }
 
-                    query = {query: {"gte":[{"count":{"filter":{"fn":"get-vatoms","owner":userID,"campaign":token.campaignID,"objectDefinition":token.objectID}, "by": {"eq": [token.traits[0].value, {"select": ["$it", "attributes", token.traits[0].key]}]}}}, token.minAmountHeld]}}
+                    if(token.traits.multiTraitCondition == "and"){
+                        query = {query: {"gte":[{"count":{"filter":{"fn":"get-vatoms","owner":userID,"campaign":token.campaignID,"objectDefinition":token.objectID}, "by":{ "and": traits.map(trait => ({ "eq": [ { "select": [ "it", "attributes", trait.key ] }, trait.value ] })) } } }, token.minAmountHeld] } }
+                    }
+                    else{
+                        query = {query: {"gte":[{"count":{"filter":{"fn":"get-vatoms","owner":userID,"campaign":token.campaignID,"objectDefinition":token.objectID}, "by":{ "or": traits.map(trait => ({ "eq": [ { "select": [ "it", "attributes", trait.key ] }, trait.value ] })) } } }, token.minAmountHeld] } }
+                    }
+                    
                 }
                 else {
                     // Construct Allowl query for vatom smart NFT
@@ -257,21 +275,30 @@ export default class TokenGatingPlugin extends BasePlugin {
 
             // TODO: Add support for "held since" token setting
             
-            // TODO: Add support for multiple trait filtering
             // Construct Allowl query for Ethereum NFT
             if(token.traits && token.traits.length > 0) {
 
-                // If trait key or value is not filled in. return trait-less query
-                if(!token.traits[0].key || token.traits[0].value){
-                    console.error(`[Token Gating] ${token.name} has a trait with a key or value equaling null. {key: ${token.traits[0].key}, value: ${token.traits[0].value}}. Defaulting to trait-less query.`)
-                    query = {query: {"gte":[{"count":{"fn":"get-eth-nfts","owner":{ "any": { "fn": "get-idens", "type": "eth", "owner": userID }, "by": { "gt": [{ "count": { "fn": "get-eth-nfts", "owner": "$it.value" } }, 0] } }}}, token.minAmountHeld]}}
-                    return query
+                let traits = []
+                for(let trait of token.traits){
+                    if(trait.key && trait.value){
+                        traits.push(trait)
+                    }
+                    else{
+                        console.error(`[Token Gating] ${token.name} has a trait with a key or value equaling null. {key: ${token.traits[0].key}, value: ${token.traits[0].value}}. Ignoring this trait in query.`)
+                    }
                 }
-
-                query = {query: {"gte":[{"count":{"filter":{"fn":"get-eth-nfts","owner":{ "any": { "fn": "get-idens", "type": "eth", "owner": userID }, "by": { "gt": [{ "count": { "fn": "get-eth-nfts", "owner": "$it.value" } }, 0] } }}, "by": [token.traits[0].value, {"select": ["$it", "attributes", token.traits[0].key]}]}}, token.minAmountHeld]}}
+                
+                if(token.multiTraitCondition == "and"){
+                    query = { "query": { "any": { "fn": "get-idens", "type": "eth", "user": userID }, "by": { "gte": [ { "count": { "filter": { "fn": "get-eth-nfts", "owner": "$it.value" }, "by": { "and": traits.map(trait => ({ "eq": [ { "select": [ "it", "attributes", trait.key ] }, trait.value ] })) } } }, token.minAmountHeld] } } }
+                }
+                else{
+                    query = { "query": { "any": { "fn": "get-idens", "type": "eth", "user": userID }, "by": { "gte": [ { "count": { "filter": { "fn": "get-eth-nfts", "owner": "$it.value" }, "by": { "or": traits.map(trait => ({ "eq": [ { "select": [ "it", "attributes", trait.key ] }, trait.value ] })) } } }, token.minAmountHeld] } } }
+                }
             }
             else {
-                query = {query: {"gte":[{"count":{"fn":"get-eth-nfts","owner":{ "any": { "fn": "get-idens", "type": "eth", "owner": userID }, "by": { "gt": [{ "count": { "fn": "get-eth-nfts", "owner": "$it.value" } }, 0] } }}}, token.minAmountHeld]}}
+
+                query = { "query": { "any": { "fn": "get-idens", "type": "eth", "user": userID }, "by": { "gte": [ { "count": { "fn": "get-eth-nfts", "owner": "$it.value" } } , token.minAmountHeld] } } }
+
             }
         }
 

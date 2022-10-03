@@ -9,6 +9,10 @@ import Swal from 'sweetalert2'
  * @param {string} props.help The text to display in the alert.
  * @param {Function} props.onValue Function to call when the value changes. First argument is the new value.
  * @param {string=} props.type Optional. Type of input to display. Default is 'textarea'.
+ * @param {number} props.fontSize Optional. Changes fontsize of text.
+ * @param {boolean} props.cutOff Optional. Cuts off text if too long.
+ * @param {boolean} props.cutOffLength Optional. Length of text shown before cut off.
+ * @param {any=} props.icon Optional. Icon placed at end of input box.
  * @param {boolean=} props.disabled Optional. `true` if input is disabled, `false` otherwise. Default is `false`.
  */
  export const Input = props => {
@@ -60,6 +64,7 @@ import Swal from 'sweetalert2'
 
     // Gets the value to display to the end user
     const getValue = () => {
+        
         // No current value
         if (props.value == null || props.value.length < 1) {
             return '-'
@@ -75,31 +80,47 @@ import Swal from 'sweetalert2'
             return hidePassword(props.value)
         }
 
+        // Cut off text after certain length
+        if(props.cutOff){
+            let value = props.value
+            let length = props.cutOffLength || 20
+            if(props.value.length > length){
+                value = value.slice(0, length) + "..."
+            }
+            return value
+        }
+
         // Default to just showing the value
         return props.value || '-'
     }
 
     // Render UI
-    return <div onClick={edit} style={Object.assign({ 
-        backgroundColor: 'rgba(0, 0, 0, 0.25)', 
-        opacity: props.disabled ? 0.45 : 1, 
-        borderRadius: 4, 
-        padding: '5px 10px', 
-        marginRight: 10, 
-        fontSize: 11, 
-        color: '#FFFFFF', 
-        wordBreak: 'break-word', 
-        lineHeight: '1.4', 
-        cursor: isClickable ? 'pointer' : 'default', 
-        whiteSpace: 'pre-wrap', 
-        maxHeight: 200, 
-        overflow: 'hidden', 
-        userSelect: 'text', 
-        WebkitUserSelect: 'text' }, props.style)}>
+    return <>
+        <div onClick={edit} style={Object.assign({ 
+            backgroundColor: 'rgba(0, 0, 0, 0.25)', 
+            opacity: props.disabled ? 0.45 : 1, 
+            borderRadius: 4, 
+            padding: '5px 10px', 
+            marginRight: 10, 
+            fontSize: props.fontSize || 11, 
+            color: '#FFFFFF', 
+            wordBreak: 'break-word', 
+            lineHeight: '1.4', 
+            cursor: isClickable ? 'pointer' : 'default', 
+            whiteSpace: 'pre-wrap', 
+            maxHeight: 200, 
+            overflow: 'hidden', 
+            userSelect: 'text', 
+            WebkitUserSelect: 'text' }, props.style)}>
 
-        { getValue() }
+            { getValue() }
 
-    </div>
+        </div>
+
+        {props.icon ? <img src={props.icon} width={15} height={15} style={{float:'right', transform: 'translate(-20px, -26px)'}} /> : null}
+    </>
+    
+   
 
 }
 
@@ -184,6 +205,57 @@ import Swal from 'sweetalert2'
     { props.title }
 
 </div>
+
+/**
+ * Displays a button with multiple sections inside it, layed out horizontally.
+ * Children must be instances of `<SplitButtonSection />`.
+ * @param {object} props The button properties.
+ * @param {object[]} props.children Children components (must be instances of `<SplitButtonSection />`).
+ * @param {React.CSSProperties=} props.style Additional styling.
+ */
+export const SplitButton = props => <div style={Object.assign({ display: 'flex', margin: '5px 5px', overflow: 'hidden' }, props.style)}>
+    { props.children }
+</div>
+
+/**
+ * A section within a split button.
+ * @param {object} props The button properties.
+ * @param {boolean} props.disabled `true` will prevent clicking and grey out the button, `false` otherwise.
+ * @param {string} props.title The button text.
+ * @param {number} props.height Height of button.
+ * @param {string} props.backgroundColor Background Color for button.
+ * @param {string} props.color Color for text.
+ * @param {Function} props.onClick Function to execute when button is clicked.
+ * @param {any=} props.icon Optional. Icon to display in button.
+ * @param {React.CSSProperties=} props.style Optional. Additional styling to apply.
+ */
+ export const SplitButtonSection = props => (
+    <div
+        onClick={props.disabled ? null : props.onClick}
+        style={Object.assign({
+            height: props.height ? props.height : 48,
+            flex: '1 1 1px',
+            margin: 5,
+            textAlign: 'center',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: props.backgroundColor || 'rgba(255, 255, 255, 0.1)',
+            color: props.color || '#FFFFFF',
+            fontSize: 16,
+            borderRadius: 3,
+            cursor: props.disabled ? 'default' : 'pointer',
+            opacity: props.disabled ? 0.5 : 1
+        }, props.style)}
+    >
+        { props.icon
+            ? <img src={props.icon} style={{ display: 'inline', height: 26, marginRight: props.title ? 5 : 0 }} />
+            : null
+        }
+
+        { props.title }
+    </div>
+)
 
 /**
  * A dropdown selection component.
@@ -294,6 +366,6 @@ export const LabeledSwitch = props => {
 export const DateTimePicker = props => {
 
     return <>
-        <input value={props.value || 'yyyy/mm/dd, --:--'} onChange={props.disabled ? null : props.onValue} style={{opacity: props.disabled ? 0.45 : 1, backgroundColor: 'rgba(0, 0, 0, 0.25)', colorScheme:'dark', borderRadius: 4, cursor: props.disabled ? 'default' : 'pointer', border: 'none', height: 25}} type={'datetime-local'} required/>
+        <input value={props.value || 'yyyy/mm/dd, --:--'} onChange={props.onValue} disabled={props.disabled} style={{opacity: props.disabled ? 0.45 : 1, backgroundColor: 'rgba(0, 0, 0, 0.25)', colorScheme:'dark', borderRadius: 4, cursor: props.disabled ? 'default' : 'pointer', border: 'none', height: 25}} type={'datetime-local'} required/>
     </>
 }

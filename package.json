@@ -12,7 +12,8 @@
     "watch:plugin": "webpack --watch",
     "watch:panel": "webpack --env ui=panel --watch",
     "start:server": "http-server ./dist -p 9000 --cors -c-1",
-    "start": "npm run clean && concurrently --kill-others npm:watch:plugin npm:watch:panel npm:start:server"
+    "start": "npm run clean && concurrently --kill-others npm:watch:plugin npm:watch:panel npm:start:server",
+    "sideload": "npm run build && node ../varius-cli/build/index.js plugin sideload"
   },
   "devDependencies": {
     "@babel/core": "^7.19.1",
@@ -37,6 +38,7 @@
   "dependencies": {
     "algoliasearch": "^4.14.2",
     "dompurify": "^2.4.0",
+    "js-file-manager": "^1.0.9",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "sweetalert2": "^11.4.33",
