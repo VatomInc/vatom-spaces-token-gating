@@ -12,7 +12,6 @@ import Swal from 'sweetalert2'
  * @param {number} props.fontSize Optional. Changes fontsize of text.
  * @param {boolean} props.cutOff Optional. Cuts off text if too long.
  * @param {boolean} props.cutOffLength Optional. Length of text shown before cut off.
- * @param {any=} props.icon Optional. Icon placed at end of input box.
  * @param {boolean=} props.disabled Optional. `true` if input is disabled, `false` otherwise. Default is `false`.
  */
  export const Input = props => {
@@ -95,8 +94,7 @@ import Swal from 'sweetalert2'
     }
 
     // Render UI
-    return <>
-        <div onClick={edit} style={Object.assign({ 
+    return <div onClick={edit} style={Object.assign({ 
             backgroundColor: 'rgba(0, 0, 0, 0.25)', 
             opacity: props.disabled ? 0.45 : 1, 
             borderRadius: 4, 
@@ -117,8 +115,121 @@ import Swal from 'sweetalert2'
 
         </div>
 
-        {props.icon ? <img src={props.icon} width={15} height={15} style={{float:'right', transform: 'translate(-20px, -26px)'}} /> : null}
-    </>
+}
+
+/**
+ * A text input field.
+ * @param {object} props The input field properties.
+ * @param {string} props.value The current value.
+ * @param {string} props.help The text to display in the alert.
+ * @param {Function} props.onValue Function to call when the value changes. First argument is the new value.
+ * @param {string=} props.type Optional. Type of input to display. Default is 'textarea'.
+ * @param {number} props.fontSize Optional. Changes fontsize of text.
+ * @param {boolean} props.cutOff Optional. Cuts off text if too long.
+ * @param {boolean} props.cutOffLength Optional. Length of text shown before cut off.
+ * @param {any=} props.icon Optional. Icon placed at end of input box.
+ * @param {boolean=} props.disabled Optional. `true` if input is disabled, `false` otherwise. Default is `false`.
+ */
+ export const Input2 = props => {
+
+    const validTypes = ['text', 'textarea', 'number', 'password']
+    let inputType = props.type ?? 'textarea'
+    const shouldRound = inputType === 'number'
+
+    if (!validTypes.includes(inputType)) {
+        inputType = 'textarea'
+    }
+
+    // Show text prompt
+    if (inputType === 'number' || inputType === 'password') {
+        inputType = 'text'
+    }
+
+    // Check if this input is clickable
+    const isClickable = props.onValue && !props.disabled
+
+    // Used to obscure the password
+    const hidePassword = password => {
+        return password.replace(/./g, '*')
+    }
+
+    // Create edit function
+    const edit = async e => {
+        // Stop if no value event
+        if (!isClickable) {
+            return
+        }
+
+        // Ask user for the new value
+        const { value } = await Swal.fire({
+            title: "Edit Field",
+            html: props.help,
+            input: inputType,
+            inputValue: props.value ?? ''
+        })
+
+        // Check if changed
+        if (value == null || value == props.value) {
+            return
+        }
+
+        // Notify updated
+        props.onValue(value)
+    }
+
+    // Gets the value to display to the end user
+    const getValue = () => {
+        
+        // No current value
+        if (props.value == null || props.value.length < 1) {
+            return '-'
+        }
+
+        // We should round the number given
+        if (shouldRound) {
+            return minimizeDecimals(parseFloat(props.value))
+        }
+
+        // We should hide the text we display (if it's a password)
+        if (props.type === 'password') {
+            return hidePassword(props.value)
+        }
+
+        // Cut off text after certain length
+        if(props.cutOff){
+            let value = props.value
+            let length = props.cutOffLength || 30
+            if(props.value.length > length){
+                value = value.slice(0, length) + "..."
+            }
+            return value
+        }
+
+        // Default to just showing the value
+        return props.value || '-'
+    }
+
+    // Render UI
+    return <div style={Object.assign({display: 'flex', margin: '5px 10px', padding: '5px 10px', cursor: isClickable ? 'pointer' : 'default', borderRadius: 4, backgroundColor: 'rgba(0, 0, 0, 0.25)'}, props.style)}>
+        <div onClick={edit} style={{ 
+            opacity: props.disabled ? 0.45 : 1, 
+            fontSize: props.fontSize || 11, 
+            color: '#FFFFFF', 
+            wordBreak: 'break-word', 
+            lineHeight: '1.4', 
+            whiteSpace: 'pre-wrap', 
+            maxHeight: 200, 
+            overflow: 'hidden', 
+            userSelect: 'text', 
+            WebkitUserSelect: 'text' }}>
+
+            { getValue() }
+
+        </div>
+
+        {props.icon ? <img src={props.icon} width={15} height={15} style={{marginLeft: 'auto'}} /> : null}
+
+    </div>
     
    
 

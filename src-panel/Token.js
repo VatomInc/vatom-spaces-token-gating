@@ -1,5 +1,5 @@
 import React from 'react';
-import {Input, Field, Select, Button, LabeledSwitch, DateTimePicker} from './panel-components'
+import {Input, Field, Select, Button, LabeledSwitch, DateTimePicker, Input2} from './panel-components'
 import { v4 as uuidv4 } from 'uuid'
 import algoliasearch from 'algoliasearch'
 import Swal from 'sweetalert2';
@@ -77,27 +77,32 @@ export default class Token extends React.PureComponent {
         // console.log('[Token Gating] AlgoliaAppID: ', this.algoliaAppID)
         // console.log('[Token Gating] AlgoliaKey: ', this.algoliaKey)
 
-        const client = await algoliasearch(this.algoliaAppID, this.algoliaKey)
+        try {
+            const client = await algoliasearch(this.algoliaAppID, this.algoliaKey)
+            let userIndex = client.initIndex("users")
+            userIndex.search(address, {"facetFilters": [["identities.type:eth"]]})
+            console.log("UserIndex: ", userIndex)
+            
+            // If invalid, show popup
+            if(!userIndex) {
+                console.error("[Token Gating] Contract Address is invalid")
+                Swal.fire('Invalid Contract Address', 'You have entered an invalid contract address for the NFT collections you wish to use as token keys. Please enter the correct contract address in the field below.', 'error')
+                this.updateToken({contractAddress: address})
+                this.updateToken({validAddress: false})
+                return
+            }
 
-        let userIndex = client.initIndex("users")
-
-        userIndex.search(address, {"facetFilters": [["identities.type:eth"]]})
-
-        console.log("UserIndex: ", userIndex)
-        
-        // If invalid, show popup
-        if(!userIndex) {
-            console.error("[Token Gating] Contract Address is invalid")
-            Swal.fire('Invalid Contract Address', 'You have entered an invalid contract address for the NFT collections you wish to use as token keys. Please enter the correct contract address in the field below.', 'error')
+            // Update Token
+            console.debug("[Token Gating] Contract Address is valid")
+            this.updateToken({contractAddress: address})
+            this.updateToken({validAddress: true})
+        }
+        catch(Err){
+            console.error("[Token Gating] The following error was triggered when validating contract address: ", Err)
             this.updateToken({contractAddress: address})
             this.updateToken({validAddress: false})
-            return
         }
-
-        // Update Token
-        console.debug("[Token Gating] Contract Address is valid")
-        this.updateToken({contractAddress: address})
-        this.updateToken({validAddress: true})
+        
     }
     
     /** Render */
@@ -143,7 +148,7 @@ export default class Token extends React.PureComponent {
                 </> : <>
                 
                     <Field name='Contract Address' help='Contract address for the NFT collection you wish to use as token keys.' />
-                    <Input style={{marginLeft: 10, marginBottom: 5}} cutOff={true} cutOffLength={30} type='text' icon={this.state.validAddress != null ? this.state.validAddress ? require('./valid.svg') : require('./invalid.svg') : null} value={this.state.contractAddress ?? ''} onValue={v => this.validateContractAddress(v)} help={'Enter the contract address for the NFT collection you wish to use as token keys.'}/>
+                    <Input2 cutOff={true} cutOffLength={30} type='text' icon={this.state.validAddress != null ? this.state.validAddress ? require('./valid.svg') : require('./invalid.svg') : null} value={this.state.contractAddress ?? ''} onValue={v => this.validateContractAddress(v)} help={'Enter the contract address for the NFT collection you wish to use as token keys.'}/>
 
                     {/* <Field style={{width: '60%'}} name='Held Since (optional)' help='Date from which this token must have been first held'>
                         <DateTimePicker disabled={true} value={this.state.heldSince} onValue={v => this.updateSettings({heldSince: v.target.value})} />
@@ -171,7 +176,7 @@ export default class Token extends React.PureComponent {
                         <Select disabled={this.state.traits.length <= 1} value={this.state.multiTraitCondition} onValue={v => this.updateToken({multiTraitCondition: v})} items={['And', 'Or']} values={['and', 'or']} />
                     </Field>
 
-                    <div style={{padding: '10px 0px'}}/>
+                    <div style={{padding: this.state.traits.length > 0 ? "10px 0px" : '5px 0px'}}/>
 
                     {this.state.traits.map(trait => <>
                     
@@ -183,9 +188,9 @@ export default class Token extends React.PureComponent {
                     
                     </>)}
 
-                    <div style={{marginTop: 10, marginRight: 5, display: 'flex', justifyContent: 'flex-end', alignItems: 'center'}}>
+                    <div style={{marginTop: this.state.traits.length > 0 ? 10 : 0, marginRight: 5, display: 'flex', justifyContent: 'flex-end', alignItems: 'center'}}>
                         <div style={{cursor: 'pointer', display: 'flex', alignItems: 'center'}} onClick={e => this.addTrait()}>
-                            <div style={{fontSize: 12, color: '#868E96'}}>Add Another Trait</div>
+                            <div style={{fontSize: 12, color: '#868E96'}}>Add Trait</div>
                             <div style={{padding: '0px 5px'}}/>
                             <div style={{fontSize: 25, color: '#868E96', transform: 'translateY(-2px)'}}>+</div>
                         </div>
