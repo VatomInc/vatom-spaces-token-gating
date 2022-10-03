@@ -14,13 +14,14 @@ This plugin is used for token gating inside of spaces (Experimental)
 
 > **Note:** You can only sideload plugins in a space you are the owner of.
 
-## Using the plugin (Version 2)
+## Using the plugin (Version 0.5)
 - Open the tokens menu (via button on bottom bar)
-- Create token/s (Only Vatom Network at the moment)
-- Select type (NFT or Coin)
-- Input the campaign ID + Object ID of the vatom smart NFT OR business IF for vatom coin.
-- Can delete token if necessary, setting the fields to empty will prevent it from being used as well.
+- Create token/s
+- Input fields to specify token rules
+- Can delete token if/when necessary.
 - Inputting a Zone ID will convert token to gate the given zone instead of the space.
+- You can save and load your token rules via the buttons at the bottom of the panel.
+- You can set general settings that apply to all token rules at the top of the panel.
 
 **Note** Admins by design. Will bypass entry denial. A popup will be displayed to notify user of this. <br />
-**Note** The API query takes a few seconds to return before granting or denying entrance to space.
+**Note** The API query might take few seconds to return before granting or denying entrance to space.
