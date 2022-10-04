@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 import algoliasearch from 'algoliasearch'
 import Swal from 'sweetalert2';
 import constants from '../src/constants'
+import {ethers} from 'ethers'
 
 export default class Token extends React.PureComponent {
 
@@ -70,38 +71,58 @@ export default class Token extends React.PureComponent {
 
     // TODO: Get contract address validation working
     /** Validates if given contract address exists */
-    async validateContractAddress(address) {
+    validateContractAddress(address) {
+
+        if(address.length == 0 || address == ''){
+            this.updateToken({contractAddress: null})
+            this.updateToken({validAddress: null})
+        }
 
         console.debug('[Token Gating] Validating contract address')
 
-        // console.log('[Token Gating] AlgoliaAppID: ', this.algoliaAppID)
-        // console.log('[Token Gating] AlgoliaKey: ', this.algoliaKey)
+        let isValid = ethers.utils.isAddress(address)
 
-        try {
-            const client = await algoliasearch(this.algoliaAppID, this.algoliaKey)
-            let userIndex = client.initIndex("users")
-            userIndex.search(address, {"facetFilters": [["identities.type:eth"]]})
-            console.log("UserIndex: ", userIndex)
-            
-            // If invalid, show popup
-            if(!userIndex) {
-                console.error("[Token Gating] Contract Address is invalid")
-                Swal.fire('Invalid Contract Address', 'You have entered an invalid contract address for the NFT collections you wish to use as token keys. Please enter the correct contract address in the field below.', 'error')
-                this.updateToken({contractAddress: address})
-                this.updateToken({validAddress: false})
-                return
-            }
-
-            // Update Token
+        if(isValid){
             console.debug("[Token Gating] Contract Address is valid")
             this.updateToken({contractAddress: address})
             this.updateToken({validAddress: true})
         }
-        catch(Err){
-            console.error("[Token Gating] The following error was triggered when validating contract address: ", Err)
+        else{
+            console.error("[Token Gating] Contract Address is invalid")
+            Swal.fire('Invalid Contract Address', 'You have entered an invalid contract address for the NFT collections you wish to use as token keys. Please enter the correct contract address in the field below.', 'error')
             this.updateToken({contractAddress: address})
             this.updateToken({validAddress: false})
         }
+
+        // console.log('[Token Gating] AlgoliaAppID: ', this.algoliaAppID)
+        // console.log('[Token Gating] AlgoliaKey: ', this.algoliaKey)
+
+        // try {
+            // const client = await algoliasearch(this.algoliaAppID, this.algoliaKey)
+            // let userIndex = client.initIndex("users")
+            // userIndex.search(address, {"facetFilters": [["identities.type:eth"]]})
+            // console.log("UserIndex: ", userIndex)
+            
+            // // If invalid, show popup
+            // if(!userIndex) {
+            //     console.error("[Token Gating] Contract Address is invalid")
+            //     Swal.fire('Invalid Contract Address', 'You have entered an invalid contract address for the NFT collections you wish to use as token keys. Please enter the correct contract address in the field below.', 'error')
+            //     this.updateToken({contractAddress: address})
+            //     this.updateToken({validAddress: false})
+            //     return
+            // }
+
+            // // Update Token
+            // console.debug("[Token Gating] Contract Address is valid")
+            // this.updateToken({contractAddress: address})
+            // this.updateToken({validAddress: true})
+            
+        // }
+        // catch(Err){
+        //     console.error("[Token Gating] The following error was triggered when validating contract address: ", Err)
+        //     this.updateToken({contractAddress: address})
+        //     this.updateToken({validAddress: false})
+        // }
         
     }
     

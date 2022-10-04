@@ -210,8 +210,8 @@ import Swal from 'sweetalert2'
     }
 
     // Render UI
-    return <div style={Object.assign({display: 'flex', margin: '5px 10px', padding: '5px 10px', cursor: isClickable ? 'pointer' : 'default', borderRadius: 4, backgroundColor: 'rgba(0, 0, 0, 0.25)'}, props.style)}>
-        <div onClick={edit} style={{ 
+    return <div onClick={edit} style={Object.assign({display: 'flex', margin: '5px 10px', padding: '5px 10px', cursor: isClickable ? 'pointer' : 'default', borderRadius: 4, backgroundColor: 'rgba(0, 0, 0, 0.25)'}, props.style)}>
+        <div style={{ 
             opacity: props.disabled ? 0.45 : 1, 
             fontSize: props.fontSize || 11, 
             color: '#FFFFFF', 
