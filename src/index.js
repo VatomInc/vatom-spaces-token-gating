@@ -18,17 +18,8 @@ export default class TokenGatingPlugin extends BasePlugin {
     // Array of all tokens
     tokens = []
 
-    // Determines if token gating is restricted to specific date/time range
-    restrictDate = false
-
-    // Date from which tokens are active
-    dateFrom = null
-
-    // Date to which tokens will be active
-    dateTo = null
-
-    // Determines if all or any of our tokens are necessary to grant access
-    multiCondition = 'and'
+    // Object containing all settings
+    settings = {restrictDate: null, dateFrom: null, multiCondition: 'and'}
 
     // Reference to userID
     userID = null
@@ -52,6 +43,17 @@ export default class TokenGatingPlugin extends BasePlugin {
             inAccordion: true,
             panel: {
                 iframeURL: this.paths.absolute('ui-build/panel/index.html')
+            }
+        })
+
+        // Register settings
+         this.menus.register({
+            id: 'token-gating-settings',
+            section: 'plugin-settings',
+            panel: {
+                fields: [
+                    { id: 'denial-msg', name: 'Entry Denial Message', default: 'Space is token gated with a token that you do not possess.', help: 'Message to show when a user is denied access to the space'},
+                ]
             }
         })
 
@@ -83,21 +85,9 @@ export default class TokenGatingPlugin extends BasePlugin {
         let savedTokens = this.getField('tokens')
         if(savedTokens) this.tokens = savedTokens
 
-        // Get saved restrictDate
-        let restrictDate = this.getField('restrictDate')
-        if(restrictDate) this.restrictDate = restrictDate
-
-        // Get saved dateFrom
-        let dateFrom = this.getField('dateFrom')
-        if(dateFrom) this.dateFrom = dateFrom
-
-        // Get saved dateTo
-        let dateTo = this.getField('dateTo')
-        if(dateTo) this.dateTo = dateTo
-
-        // Get saved multi-condition
-        let multiCondition = this.getField('multiCondition')
-        if(multiCondition) this.multiCondition = multiCondition
+        // Get saved settings
+        let settings = this.getField('settings')
+        if(settings) this.settings = settings
         
     }
 
@@ -114,35 +104,25 @@ export default class TokenGatingPlugin extends BasePlugin {
 
         if(e.action == 'get-settings'){
             console.debug('[Token Gating] Sending settings to panel')
-            let settings = {restrictDate: this.restrictDate, dateFrom: this.dateFrom, dateTo: this.dateTo, multiCondition: this.multiCondition}
-            this.menus.postMessage({action: 'send-settings', settings: settings}, '*')
+            this.menus.postMessage({action: 'send-settings', settings: this.settings}, '*')
         }
 
         // Updating token gating settings 
         if(e.action == 'update-settings') {
+            console.debug('[Token Gating] Updating token gating settings')
 
-            if(e.restrictDate != null) {
-                this.restrictDate = e.restrictDate
-                await this.setField('restrictDate', this.restrictDate)
-            }
+            let key = Object.keys(e.settings)
+            let value = e.settings[key]
+
+            this.settings[key] = value
+
+            await this.setField('settings', this.settings)
             
-            // Set dateFrom setting
-            if(e.dateFrom) {
-                this.dateFrom = e.dateFrom
-                await this.setField('dateFrom', this.dateFrom)
-            }
+            // Send updated token list back to panel
+            this.menus.postMessage({action: 'send-settings', settings: this.settings}, '*')
 
-            // Set dateTo setting
-            if(e.dateTo) {
-                this.dateTo = e.dateTo
-                await this.setField('dateTo', this.dateTo)
-            }
-
-            // Set multi-condition setting
-            if(e.multiCondition) {
-                this.multiCondition = e.multiCondition
-                await this.setField('dateTo', this.dateTo)
-            }
+            // Send message to notify other users that tokens have changed
+            this.messages.send({action: 'refresh-settings', userID: this.userID, settings: this.settings})
         }
 
         // Add a token
@@ -154,6 +134,8 @@ export default class TokenGatingPlugin extends BasePlugin {
             await this.setField('tokens', this.tokens)
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
+            // Send message to notify other users that tokens have changed
+            this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens})
         }
 
         // Update a token
@@ -175,6 +157,9 @@ export default class TokenGatingPlugin extends BasePlugin {
             
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
+
+            // Send message to notify other users that tokens have changed
+            this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens})
         }
 
         if(e.action == 'delete-token') {
@@ -191,9 +176,10 @@ export default class TokenGatingPlugin extends BasePlugin {
 
             // Save token update 
             await this.setField('tokens', this.tokens)
-
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
+            // Send message to notify other users that tokens have changed
+            this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens})
         }
 
         // Set tokens 
@@ -203,12 +189,41 @@ export default class TokenGatingPlugin extends BasePlugin {
             this.setField('tokens', this.tokens)
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
+            // Send message to notify other users that tokens have changed
+            this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens})
         }
 
-        console.group('[Token Gating] Updated Tokens')
-        console.log("[Plugin] ",this.tokens)
-        console.log("[Server] ", this.getField('tokens'))
-        console.groupEnd()
+        // Called when tokens have been changed
+        if(e.action == 'refresh-tokens'){
+            
+            // Don't need to refresh if we sent the message
+            if(this.userID == e.userID){
+                return
+            }
+
+            console.debug('[Token Gating] Token rules refreshed')
+
+            this.tokens = e.tokens
+            this.menus.postMessage({action: 'send-tokens', tokens: e.tokens}, '*')
+        }
+
+        // Called when settings have been change
+        if(e.action == 'refresh-settings'){
+
+            // Don't need to refresh if we sent the message
+            if(this.userID == e.userID){
+                return
+            }
+
+            console.debug('[Token Gating] Updating token gating settings')
+            this.settings = e.settings
+            this.menus.postMessage({action: 'send-settings', settings: e.settings}, '*')  
+        }
+
+        // console.group('[Token Gating] Updated Tokens')
+        // console.log("[Plugin] ",this.tokens)
+        // console.log("[Server] ", this.getField('tokens'))
+        // console.groupEnd()
     }
 
     /** Constructs an API query based on a token's parameters */
@@ -275,8 +290,8 @@ export default class TokenGatingPlugin extends BasePlugin {
 
             // TODO: Add support for "held since" token setting
 
-             // Check if necessary field are not null
-             if(!token.contractAddress || !token.validAddress){
+            // Check if necessary field are not null
+            if(!token.contractAddress || !token.validAddress){
                 console.error(`[Token Gating] The contract address was not found or invalid for the following Vatom smart NFT token: ${token}`)
                 return
             }
@@ -319,7 +334,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             return null
         }
                     
-        let yearMonthDay = this.dateFrom.split('T')[0]
+        let yearMonthDay = date.split('T')[0]
         yearMonthDay = yearMonthDay.split('-')
         yearMonthDay = yearMonthDay.map(Number)
         
@@ -368,8 +383,8 @@ export default class TokenGatingPlugin extends BasePlugin {
                 if(this.restrictDate) {
 
                     let currentDate = new Date()
-                    let dateFrom = this.formatDateString(this.dateFrom)
-                    let dateTo = this.formatDateString(this.dateTo)
+                    let dateFrom = this.formatDateString(this.settings.dateFrom)
+                    let dateTo = this.formatDateString(this.settings.dateTo)
          
                     // If current date is before dateFrom restriction
                     if(dateFrom) {
@@ -389,7 +404,7 @@ export default class TokenGatingPlugin extends BasePlugin {
                 }
                 
                 // If condition is 'and', only grant access if all tokens are possessed
-                if(this.multiCondition == 'and') {
+                if(this.settings.multiCondition == 'and') {
                     accessGranted++
                     if(this.tokens.length == accessGranted){
                         console.debug(`[Token Gating] Entry Granted. User possesses the correct tokens in their wallet.`)
@@ -403,13 +418,15 @@ export default class TokenGatingPlugin extends BasePlugin {
             }
             else {
                 // If condition is 'and', simply throw error
-                if(this.multiCondition == 'and'){
-                    throw new Error(`[Token Gating] Entry Denied. User does not possess the correct tokens in their wallet.`)
+                if(this.settings.multiCondition == 'and'){
+                    let err = this.getField('denial-msg')
+                    throw new Error(err)
                 }
                 else { // Otherwise, condition is 'or' so only throw error if no tokens are possessed
                     accessDenied++
                     if(this.tokens.length == accessDenied) {
-                        throw new Error(`[Token Gating] Entry Denied. User does not possess any correct tokens in their wallet.`)
+                        let err = this.getField('denial-msg')
+                        throw new Error(err)
                     }
                 }
                
@@ -489,7 +506,7 @@ export default class TokenGatingPlugin extends BasePlugin {
                             // Set user position to last recorded position before entering zone
                             this.user.setPosition(this.lastUserPosition.x, this.lastUserPosition.y, this.lastUserPosition.z)
                             if(this.dateTimeBlocked) {
-                                this.menus.alert('Entry to region denied', `The Token assigned to this region is only valid between ${this.dateFrom ? this.dateFrom : 'any time'} and ${this.dateTo ? this.dateTo : 'any time'}`, 'error')
+                                this.menus.alert('Entry to region denied', `The Token assigned to this region is only valid between ${this.settings.dateFrom ? this.settings.dateFrom : 'any time'} and ${this.settings.dateTo ? this.settings.dateTo : 'any time'}`, 'error')
                             }
                             else {
                                 this.menus.alert('Entry to region denied', "You do not possess the correct token required to enter this region", 'error')
@@ -511,19 +528,23 @@ export default class TokenGatingPlugin extends BasePlugin {
                     // Construct query based on token parameters
                     let query = this.constructQuery(this.userID, token)
 
-                    // Pass our query to Allowl API
-                    let response = await this.user.queryAllowlPermission(query)
-
-                    // Track reference to API result
-                    this.currentRegionAccess = response.result
+                    if(query) {
+                        // Pass our query to Allowl API
+                        let response = await this.user.queryAllowlPermission(query)
+                        // Track reference to API result
+                        this.currentRegionAccess = response.result
+                    }
+                    else{
+                        this.currentRegionAccess = false
+                    }  
 
                     if(this.currentRegionAccess) {
                         
                         if(this.restrictDate) {
 
                             let currentDate = new Date()
-                            let dateFrom = this.formatDateString(this.dateFrom)
-                            let dateTo = this.formatDateString(this.dateTo)
+                            let dateFrom = this.formatDateString(this.settings.dateFrom)
+                            let dateTo = this.formatDateString(this.settings.dateTo)
                  
                             // If current date is before dateFrom restriction
                             if(dateFrom) {
