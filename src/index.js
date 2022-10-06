@@ -41,6 +41,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             icon: this.paths.absolute('button-icon.png'),
             text: 'Tokens',
             inAccordion: true,
+            adminOnly: true,
             panel: {
                 iframeURL: this.paths.absolute('ui-build/panel/index.html')
             }
@@ -71,10 +72,10 @@ export default class TokenGatingPlugin extends BasePlugin {
         // Periodically check to ensure specified regions are gated
         setInterval(this.gateRegions, 1000)
 
-        console.group('[Token Gating] Starting Tokens')
-        console.log("[Plugin]: ", this.tokens)
-        console.log("[Server]: ", this.getField('tokens'))
-        console.groupEnd()
+        // console.group('[Token Gating] Starting Tokens')
+        // console.log("[Plugin]: ", this.tokens)
+        // console.log("[Server]: ", this.getField('tokens'))
+        // console.groupEnd()
 
     }
 
@@ -372,7 +373,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             // Pass our query to Allowl API
             let response = await this.user.queryAllowlPermission(query)
 
-            console.group("Allowl Response")
+            console.group("[Token Gating] Allowl Response")
             console.debug("Token: ", token)
             console.debug("Response: ", response)
             console.groupEnd()
@@ -380,6 +381,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             // If response returns true let user in, otherwise deny access
             if(response.result == true) {
 
+                // If we are restricting date
                 if(this.restrictDate) {
 
                     let currentDate = new Date()
@@ -399,8 +401,6 @@ export default class TokenGatingPlugin extends BasePlugin {
                             throw new Error(`[Token Gating] Entry Denied. Tokens for this space are no longer active post the following date and time: ${dateTo}`)
                         }
                     }
-         
-         
                 }
                 
                 // If condition is 'and', only grant access if all tokens are possessed
@@ -419,13 +419,13 @@ export default class TokenGatingPlugin extends BasePlugin {
             else {
                 // If condition is 'and', simply throw error
                 if(this.settings.multiCondition == 'and'){
-                    let err = this.getField('denial-msg')
+                    let err = this.getField('denial-msg') || "Space is token gated with a token that you do not possess."
                     throw new Error(err)
                 }
                 else { // Otherwise, condition is 'or' so only throw error if no tokens are possessed
                     accessDenied++
                     if(this.tokens.length == accessDenied) {
-                        let err = this.getField('denial-msg')
+                        let err = this.getField('denial-msg') || "Space is token gated with a token that you do not possess."
                         throw new Error(err)
                     }
                 }
