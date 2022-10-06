@@ -528,18 +528,21 @@ export default class TokenGatingPlugin extends BasePlugin {
                     // Construct query based on token parameters
                     let query = this.constructQuery(this.userID, token)
 
+                    // Initialize response to false
+                    let response = {result: false}
+                    // If query is returned
                     if(query) {
                         // Pass our query to Allowl API
-                        let response = await this.user.queryAllowlPermission(query)
-                        // Track reference to API result
-                        this.currentRegionAccess = response.result
+                        response = await this.user.queryAllowlPermission(query)
                     }
-                    else{
-                        this.currentRegionAccess = false
-                    }  
-
+                                        
+                    // Track reference to API result
+                    this.currentRegionAccess = response.result
+                   
+                    // If We have been granted access to the region
                     if(this.currentRegionAccess) {
                         
+                        // If dates are restricted
                         if(this.restrictDate) {
 
                             let currentDate = new Date()
