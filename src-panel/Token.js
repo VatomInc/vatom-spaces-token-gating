@@ -128,6 +128,11 @@ export default class Token extends React.PureComponent {
                     <Input type='number' value={this.props.token.minAmountHeld ?? 1} onValue={v => this.updateToken({minAmountHeld: v})} help='Enter the minimum amount of token keys required to grant access.' />
                 </Field>
 
+                <hr style={{ width: 'calc(100% - 40px)', color: 'rgb(255, 255, 255)', opacity: 0.2 }} />
+
+                <Field name={`${this.props.token.zoneID ? 'Region' : 'Space'} Denial Message`} help={`The message you wish to show to users when they are denied access to the ${this.props.token.zoneID ? 'Region' : 'Space'}. If left empty, will use default message.`}/>
+                <Input2 type='textarea' value={this.props.token.denialMessage ?? ''} onValue={v => this.updateToken({denialMessage: v})} help={`Enter the message you wish to show to users when they are denied access to the ${this.props.token.zoneID ? 'Region' : 'Space'} `}/>
+
                 {this.props.token.type != 'coin' ? <>
                 
                     <hr style={{ width: 'calc(100% - 40px)', color: 'rgb(255, 255, 255)', opacity: 0.2 }} />

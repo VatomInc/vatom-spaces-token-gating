@@ -24,6 +24,9 @@ export default class TokenGatingPlugin extends BasePlugin {
     // Reference to userID
     userID = null
 
+    // Reference to user's admin status
+    isAdmin = false
+
     // Used to track if we have checked access to the current region
     currentRegionCheck = false
     
@@ -41,20 +44,10 @@ export default class TokenGatingPlugin extends BasePlugin {
             icon: this.paths.absolute('button-icon.png'),
             text: 'Tokens',
             inAccordion: true,
+            section: 'admin-panel',
             adminOnly: true,
             panel: {
                 iframeURL: this.paths.absolute('ui-build/panel/index.html')
-            }
-        })
-
-        // Register settings
-         this.menus.register({
-            id: 'token-gating-settings',
-            section: 'plugin-settings',
-            panel: {
-                fields: [
-                    { id: 'denial-msg', name: 'Entry Denial Message', default: 'Space is token gated with a token that you do not possess.', help: 'Message to show when a user is denied access to the space'},
-                ]
             }
         })
 
@@ -63,6 +56,10 @@ export default class TokenGatingPlugin extends BasePlugin {
         let userID = await this.user.getID()
         this.userID = userID.split(':').pop()
 
+        // Get current user's admin status
+        this.isAdmin = await this.user.isAdmin()
+        console.log("ISADMIN ", this.isAdmin)
+
         // Fetch all saved fields
         this.getSavedSettings()
 
@@ -70,12 +67,7 @@ export default class TokenGatingPlugin extends BasePlugin {
         this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
 
         // Periodically check to ensure specified regions are gated
-        setInterval(this.gateRegions, 1000)
-
-        // console.group('[Token Gating] Starting Tokens')
-        // console.log("[Plugin]: ", this.tokens)
-        // console.log("[Server]: ", this.getField('tokens'))
-        // console.groupEnd()
+        setInterval(this.gateRegions, 500)
 
     }
 
@@ -419,13 +411,13 @@ export default class TokenGatingPlugin extends BasePlugin {
             else {
                 // If condition is 'and', simply throw error
                 if(this.settings.multiCondition == 'and'){
-                    let err = this.getField('denial-msg') || "Space is token gated with a token that you do not possess."
+                    let err = token.denialMessage || "Space is token gated with a token that you do not possess."
                     throw new Error(err)
                 }
                 else { // Otherwise, condition is 'or' so only throw error if no tokens are possessed
                     accessDenied++
                     if(this.tokens.length == accessDenied) {
-                        let err = this.getField('denial-msg') || "Space is token gated with a token that you do not possess."
+                        let err = token.denialMessage || "Space is token gated with a token that you do not possess."
                         throw new Error(err)
                     }
                 }
@@ -494,23 +486,31 @@ export default class TokenGatingPlugin extends BasePlugin {
                 if(this.removingUser)
                     return
 
+                // Stop if admin status is verified 
+                if(this.adminCheck)
+                    return
+
                 // If we have checked the current region and denied access, then kick user out
                 if(this.currentRegionCheck && !this.currentRegionAccess) {
 
+                    // Let admins bypass denial
+                    if(this.isAdmin && !this.adminCheck){
+                        this.adminCheck = true
+                        let message = this.dateTimeBlocked ? 'This region is token gated with a token that is not activated yet. Admins can bypass this denial but other users cannot.' : 'This region is token gated with a token you do not posses. Admins can bypass this denial but other users cannot.'
+                        this.menus.alert(message, 'Attempted to deny entry', 'warning')
+                        this.currentRegionAccess = true
+                        return
+                    }
+
                     // If we know user's last position before entering zone
                     if(this.lastUserPosition){
-                        
                         // If we aren't already removing user 
                         if(!this.removingUser) {
                             this.removingUser = true
                             // Set user position to last recorded position before entering zone
                             this.user.setPosition(this.lastUserPosition.x, this.lastUserPosition.y, this.lastUserPosition.z)
-                            if(this.dateTimeBlocked) {
-                                this.menus.alert(`The Token assigned to this region is only valid ${this.settings.dateFrom ? 'from ' + this.settings.dateFrom: 'after'}  ${this.settings.dateTo ? this.settings.dateFrom ? 'and after ' + this.settings.dateTo : this.settings.dateTo : ''}`,'Entry to region denied', 'error')
-                            }
-                            else {
-                                this.menus.alert('Entry to region denied', "You do not possess the correct token required to enter this region", 'error')
-                            }
+                            let message = this.dateTimeBlocked ? `The token assigned to this region is only valid ${this.settings.dateFrom ? 'from ' + this.settings.dateFrom: 'after'}  ${this.settings.dateTo ? this.settings.dateFrom ? 'and after ' + this.settings.dateTo : this.settings.dateTo : ''}` : token.denialMessage ? token.denialMessage : 'You do not possess the correct token required to enter this region'
+                            this.menus.alert(message, 'Entry to region denied', 'error')
                         }
             
                     }
@@ -585,6 +585,7 @@ export default class TokenGatingPlugin extends BasePlugin {
                 if(this.currentRegionAccess) this.currentRegionAccess = false
                 if(this.removingUser) this.removingUser = false
                 if(this.dateTimeBlocked) this.dateTimeBlocked = false
+                if(this.adminCheck) this.adminCheck = false
                 this.lastUserPosition = await this.user.getPosition()
             }
            

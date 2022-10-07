@@ -47,6 +47,7 @@ export default class TokenList extends React.PureComponent {
             minAmountHeld: 1,
             contractAddress: null,
             heldSince: null,
+            denialMessage: null,
             multiTraitCondition: 'and',
             traits: []}
 
