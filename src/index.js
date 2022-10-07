@@ -36,6 +36,9 @@ export default class TokenGatingPlugin extends BasePlugin {
     // Tracks if we are actively removing user from region
     removingUser = false
 
+    // Checks if we have verified that user inside region is an admin
+    adminCheck = false
+
     /** Called on load */
     async onLoad() {
 
