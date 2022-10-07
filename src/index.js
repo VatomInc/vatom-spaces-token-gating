@@ -19,7 +19,7 @@ export default class TokenGatingPlugin extends BasePlugin {
     tokens = []
 
     // Object containing all settings
-    settings = {restrictDate: null, dateFrom: null, multiCondition: 'and'}
+    settings = {restrictDate: false, dateFrom: null, dateTo: null, multiCondition: 'and'}
 
     // Reference to userID
     userID = null
@@ -94,7 +94,7 @@ export default class TokenGatingPlugin extends BasePlugin {
 
     /** Receives postMessages */
     onMessage = async e => {
-        console.log('[Token Gating] Plugin OnMessage: ', e)
+        // console.log('[Token Gating] Plugin OnMessage: ', e)
         
         // Pass tokens to panel
         if(e.action == 'get-tokens') {
@@ -382,7 +382,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             if(response.result == true) {
 
                 // If we are restricting date
-                if(this.restrictDate) {
+                if(this.settings.restrictDate) {
 
                     let currentDate = new Date()
                     let dateFrom = this.formatDateString(this.settings.dateFrom)
@@ -543,7 +543,7 @@ export default class TokenGatingPlugin extends BasePlugin {
                     if(this.currentRegionAccess) {
                         
                         // If dates are restricted
-                        if(this.restrictDate) {
+                        if(this.settings.restrictDate) {
 
                             let currentDate = new Date()
                             let dateFrom = this.formatDateString(this.settings.dateFrom)

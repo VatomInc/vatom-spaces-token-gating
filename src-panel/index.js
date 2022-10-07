@@ -15,7 +15,7 @@ class App extends React.PureComponent {
 
         window.addEventListener('message', e => {
             
-            console.debug("[Token Gating] Panel onMessage: ", e)
+            // console.debug("[Token Gating] Panel onMessage: ", e)
             
             // If plugin is sending us reference to existing tokens
             if(e.data.action == 'send-tokens') {
