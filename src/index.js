@@ -391,14 +391,14 @@ export default class TokenGatingPlugin extends BasePlugin {
                     // If current date is before dateFrom restriction
                     if(dateFrom) {
                         if(currentDate < dateFrom) {
-                            throw new Error(`[Token Gating] Entry Denied. Tokens for this space will only activate post the following date and time: ${dateFrom}`)
+                            throw new Error(`Entry Denied. Tokens for this space will only activate post the following date and time: ${dateFrom}`)
                         }
                     }
 
                     // If current date is after dateTo restriction
                     if(dateTo) {
                         if(currentDate > dateTo) {
-                            throw new Error(`[Token Gating] Entry Denied. Tokens for this space are no longer active post the following date and time: ${dateTo}`)
+                            throw new Error(`Entry Denied. Tokens for this space are no longer active post the following date and time: ${dateTo}`)
                         }
                     }
                 }
@@ -506,7 +506,7 @@ export default class TokenGatingPlugin extends BasePlugin {
                             // Set user position to last recorded position before entering zone
                             this.user.setPosition(this.lastUserPosition.x, this.lastUserPosition.y, this.lastUserPosition.z)
                             if(this.dateTimeBlocked) {
-                                this.menus.alert('Entry to region denied', `The Token assigned to this region is only valid between ${this.settings.dateFrom ? this.settings.dateFrom : 'any time'} and ${this.settings.dateTo ? this.settings.dateTo : 'any time'}`, 'error')
+                                this.menus.alert(`The Token assigned to this region is only valid ${this.settings.dateFrom ? 'from ' + this.settings.dateFrom: 'after'}  ${this.settings.dateTo ? this.settings.dateFrom ? 'and after ' + this.settings.dateTo : this.settings.dateTo : ''}`,'Entry to region denied', 'error')
                             }
                             else {
                                 this.menus.alert('Entry to region denied', "You do not possess the correct token required to enter this region", 'error')
