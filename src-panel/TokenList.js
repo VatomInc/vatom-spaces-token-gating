@@ -44,6 +44,8 @@ export default class TokenList extends React.PureComponent {
             campaignID: null, 
             objectID: null, 
             businessID: null, 
+            zoneID: null,
+            zoneAccess: false,
             minAmountHeld: 1,
             contractAddress: null,
             heldSince: null,
