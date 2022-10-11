@@ -72,7 +72,7 @@ export default class TokenGatingPlugin extends BasePlugin {
         this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
 
         // Periodically check to ensure specified regions are gated
-        setInterval(this.gateRegions, 250)
+        setInterval(this.gateRegions, 100)
 
     }
 
@@ -97,12 +97,12 @@ export default class TokenGatingPlugin extends BasePlugin {
         for(let token of this.tokens) {
             if(token.zoneID) {
                 let query = this.constructQuery(this.userID, token)
-                let response = await this.user.queryAllowlPermission(query)
+                let response = query ? await this.user.queryAllowlPermission(query) : {result: false}
                 this.gatedRegions.push({id: token.zoneID, access: response.result, token: token})
             }
         }
 
-        // console.group("GATED REGIONS")
+        // console.group("Gated Regions")
         // console.log(this.gatedRegions)
         // console.groupEnd()
     }
@@ -400,10 +400,10 @@ export default class TokenGatingPlugin extends BasePlugin {
             // Pass our query to Allowl API
             let response = await this.user.queryAllowlPermission(query)
 
-            console.group("[Token Gating] Allowl Response")
-            console.debug("Token: ", token)
-            console.debug("Response: ", response)
-            console.groupEnd()
+            // console.group("[Token Gating] Allowl Response")
+            // console.debug("Token: ", token)
+            // console.debug("Response: ", response)
+            // console.groupEnd()
 
             // If response returns true let user in, otherwise deny access
             if(response.result == true) {
@@ -534,13 +534,35 @@ export default class TokenGatingPlugin extends BasePlugin {
                         return
                     }
 
+                    if(this.lastUserPosition) {
+                        
+                        // Get user's current position 
+                        let currentPosition = await this.user.getPosition()
+                        
+                        // Get normalized direction vector with offset added
+                        let directionOffset = this.getNormalizedDirectionVector(this.lastUserPosition, currentPosition, 3)
+    
+                        if(directionOffset){
+                            // Record position user should be returned to if they are kicked out of the region
+                            this.returnPosition = {
+                                x: currentPosition.x + directionOffset.x,
+                                y: currentPosition.y + directionOffset.y,
+                                z: currentPosition.z + directionOffset.z
+                            }
+                        }
+    
+                    }
+
+                    // Set return position to our return position reference or last tracked user position as backup
+                    let returnPosition = this.returnPosition || this.lastUserPosition
+                    
                     // If we know user's last position before entering zone
-                    if(this.returnPosition){
+                    if(returnPosition){
                         // If we aren't already removing user 
                         if(!this.removingUser) {
                             this.removingUser = true
                             // Set user position to last recorded position before entering zone
-                            this.user.setPosition(this.returnPosition.x, this.returnPosition.y, this.returnPosition.z)
+                            this.user.setPosition(returnPosition.x, returnPosition.y, returnPosition.z)
                             let message = this.dateTimeBlocked ? `The token assigned to this region is only valid ${this.settings.dateFrom ? 'from ' + this.settings.dateFrom: 'after'}  ${this.settings.dateTo ? this.settings.dateFrom ? 'and after ' + this.settings.dateTo : this.settings.dateTo : ''}` : region.token.denialMessage ? region.token.denialMessage : 'You do not possess the correct token required to enter this region'
                             this.menus.alert(message, 'Entry to region denied', 'error')
                         }
@@ -619,28 +641,7 @@ export default class TokenGatingPlugin extends BasePlugin {
                 if(this.removingUser) this.removingUser = false
                 if(this.dateTimeBlocked) this.dateTimeBlocked = false
                 if(this.adminCheck) this.adminCheck = false
-
-                if(this.lastUserPosition){
-                    // Get user's current position 
-                    let currentPosition = await this.user.getPosition()
-                    
-                    // Get normalised direction vector with offset added
-                    let directionOffset = this.getNormalizedDirectionVector(this.lastUserPosition, currentPosition, 3)
-
-                    if(directionOffset){
-                        // Record position user should be returned to if they are kicked out of the region
-                        this.returnPosition = {
-                            x: currentPosition.x + directionOffset.x,
-                            y: currentPosition.y + directionOffset.y,
-                            z: currentPosition.z + directionOffset.z
-                        }
-                    }
-
-                }
-               
-                // If not yet set, set last known user position as current position
                 this.lastUserPosition = await this.user.getPosition()
-               
             }
            
         }
@@ -649,6 +650,11 @@ export default class TokenGatingPlugin extends BasePlugin {
 
     /** Returns a normalized direction vector with optional offset added */
     getNormalizedDirectionVector(pointA, pointB, offset=1){
+
+        // Return if both points are equal
+        if(pointA.x == pointB.x && pointA.y == pointB.y && pointA.z == pointB.z){
+            return
+        }
         
         // Get direction vector between two points
         let direction = {
@@ -661,8 +667,8 @@ export default class TokenGatingPlugin extends BasePlugin {
         let magnitude = Math.sqrt((direction.x**2) + (direction.y**2) + (direction.z**2))
                     
         // If magnitude is 0 is means no change in position was recorded so stop
-        if(magnitude == 0){
-            return null
+        if(magnitude == 0) {
+            return
         }  
 
         // Normalize direction vector
