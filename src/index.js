@@ -72,7 +72,7 @@ export default class TokenGatingPlugin extends BasePlugin {
         this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
 
         // Periodically check to ensure specified regions are gated
-        setInterval(this.gateRegions, 100)
+        this.regionGatingInterval = setInterval(this.gateRegions, 100)
 
     }
 
@@ -268,11 +268,9 @@ export default class TokenGatingPlugin extends BasePlugin {
 
                 // Check if necessary field are not null
                 if(!token.campaignID || !token.objectID){
-                    console.error(`[Token Gating] No CampaignID or Object ID found for the following Vatom smart NFT token: ${token}`)
+                    // console.error(`[Token Gating] No CampaignID or Object ID found for the Vatom smart NFT with ID: ${token.id}`)
                     return
                 }
-
-                // TODO: Add support for multiple trait filtering
 
                 // Construct Allowl query for Vatom Smart NFT
                 if(token.traits && token.traits.length > 0) {
@@ -316,8 +314,6 @@ export default class TokenGatingPlugin extends BasePlugin {
         }
         else {
 
-            // TODO: Add support for "held since" token setting
-
             // Check if necessary field are not null
             if(!token.contractAddress || !token.validAddress){
                 console.error(`[Token Gating] The contract address was not found or invalid for the following Vatom smart NFT token: ${token}`)
@@ -354,11 +350,11 @@ export default class TokenGatingPlugin extends BasePlugin {
         return query
     }
 
-    /** Formats date string returned from calendar component into date object */
-    formatDateString(date) {
+    /** Converts date string returned from calendar component into date object */
+    convertToDate(date) {
 
         if(!date) {
-            console.warn("[Token Gating] Attempted to format date but date was null")
+            console.warn("[Token Gating] Attempted to convert date but date was null")
             return null
         }
                     
@@ -374,16 +370,31 @@ export default class TokenGatingPlugin extends BasePlugin {
         return dateObject
     }
 
-    /** Called when user enters the space */
+    /** Called on space enter */
     onSpaceEnter = async () => {
+        
+        // Gate space on enter
+        await this.gateSpace(false)
 
+        // Periodically check to ensure users still have the correct tokens
+        if(!this.isAdmin) this.spaceGatingInterval = setInterval(async () => { await this.gateSpace(true)}, 15000)
+    
+    }
+
+    /** Called when attempting to gate a space */
+    async gateSpace(insideSpace) {
+
+        // Stop if no tokens
+        if(this.tokens.length == 0)
+            return
+        
         // Counters to keep track of how many tokens have granted/denied access
         let accessGranted = 0
         let accessDenied = 0
-
+ 
         // Iterate through all tokens
         for(let token of this.tokens) {
-
+ 
             // If token has zoneID field then continue
             if(token.zoneID) {
                 continue
@@ -407,25 +418,48 @@ export default class TokenGatingPlugin extends BasePlugin {
 
             // If response returns true let user in, otherwise deny access
             if(response.result == true) {
-
+ 
                 // If we are restricting date
                 if(this.settings.restrictDate) {
 
+                    // Get restricted date range
                     let currentDate = new Date()
-                    let dateFrom = this.formatDateString(this.settings.dateFrom)
-                    let dateTo = this.formatDateString(this.settings.dateTo)
-         
+                    let dateFrom = this.convertToDate(this.settings.dateFrom)
+                    let dateTo = this.convertToDate(this.settings.dateTo)
+                    
+                    // Construct error messages
+                    let denialMessage = `The token assigned to this space is only active ${this.settings.dateFrom ? 'from ' + this.formatDateString(this.settings.dateFrom): 'before'}  ${this.settings.dateTo ? this.settings.dateFrom ? ' and before ' + this.formatDateString(this.settings.dateTo) : this.formatDateString(this.settings.dateTo) : ''}`
+                    let deactivatedTokenMessage = `Leaving Space in 60 seconds <br><br> Tokens assigned to this space are only active ${this.settings.dateFrom ? 'from ' + this.settings.dateFrom: 'before'}  ${this.settings.dateTo ? this.settings.dateFrom ? ' and before ' + this.settings.dateTo : this.settings.dateTo : ''}`
+        
                     // If current date is before dateFrom restriction
                     if(dateFrom) {
                         if(currentDate < dateFrom) {
-                            throw new Error(`Entry Denied. Tokens for this space will only activate post the following date and time: ${dateFrom}`)
+                            if(insideSpace) {
+                                if(!this.missingTokenTimer) {
+                                    this.menus.alert(deactivatedTokenMessage, 'Token no longer active', 'info')
+                                    this.missingTokenTimer = setTimeout(e => this.kickUser(denialMessage), 60000)
+                                }
+                            }
+                            else{
+                                throw new Error(denialMessage)
+                            }
+
                         }
                     }
 
                     // If current date is after dateTo restriction
                     if(dateTo) {
                         if(currentDate > dateTo) {
-                            throw new Error(`Entry Denied. Tokens for this space are no longer active post the following date and time: ${dateTo}`)
+                            if(insideSpace) {
+                                if(!this.missingTokenTimer){
+                                    this.menus.alert(deactivatedTokenMessage, 'Token no longer active', 'info')
+                                    this.missingTokenTimer = setTimeout(e => this.kickUser(denialMessage), 60000)
+                                }
+                            }
+                            else{
+                                throw new Error(denialMessage)
+                            }
+                            
                         }
                     }
                 }
@@ -435,32 +469,68 @@ export default class TokenGatingPlugin extends BasePlugin {
                     accessGranted++
                     if(this.tokens.length == accessGranted){
                         console.debug(`[Token Gating] Entry Granted. User possesses the correct tokens in their wallet.`)
+                        // If in the midst of removing user due to missing token, then stop
+                        if(this.missingTokenTimer) {
+                            clearTimeout(this.missingTokenTimer)
+                            this.missingTokenTimer = null
+                        }
                         return
                     }
                 }
                 else { // Otherwise, condition is 'or' so if any token is possessed, simply grant access
                     console.debug(`[Token Gating] Entry Granted. User possesses a correct token in their wallet.`)
+                    // If in the midst of removing user due to missing token, then stop
+                    if(this.missingTokenTimer) {
+                        clearTimeout(this.missingTokenTimer)
+                        this.missingTokenTimer = null
+                    }
                     return
                 }
             }
             else {
+
+                // TODO: Add link 'token' for missing token
+                // Construct error messages
+                let traitToString = token?.traits?.length > 0 ? ` with the following traits: <br><br>` + this.tokenTraitsToString(token.traits) : ''
+                let denialMessage = token.denialMessage || `Missing Access Token <br><br> Access to this space requires that visitors hold ${token.minAmountHeld} of this <u>token</u>` + traitToString
+                let lostTokenMessage = `Leaving Space in 60 seconds <br><br> Access to this space requires that visitors hold ${token.minAmountHeld} of this token` + traitToString
+
                 // If condition is 'and', simply throw error
-                if(this.settings.multiCondition == 'and'){
-                    let err = token.denialMessage || "Space is token gated with a token that you do not possess."
-                    throw new Error(err)
+                if(this.settings.multiCondition == 'and') {
+                    if(insideSpace) {
+                        if(!this.missingTokenTimer){
+                            this.menus.alert(lostTokenMessage, 'Lost Access Token', 'info')
+                            this.missingTokenTimer = setTimeout(e => this.kickUser(denialMessage), 60000)
+                        }
+                    }
+                    else{
+                        throw new Error(denialMessage)
+                    }
                 }
                 else { // Otherwise, condition is 'or' so only throw error if no tokens are possessed
                     accessDenied++
                     if(this.tokens.length == accessDenied) {
-                        let err = token.denialMessage || "Space is token gated with a token that you do not possess."
-                        throw new Error(err)
+                        if(insideSpace) {
+                            if(!this.missingTokenTimer){
+                                this.menus.alert(lostTokenMessage, 'Lost Access Token', 'info')
+                                this.missingTokenTimer = setTimeout(e => this.kickUser(denialMessage), 60000)
+                            } 
+                        } 
+                        else{
+                            throw new Error(denialMessage)
+                        }
+                        
                     }
                 }
-               
+                
             } 
-           
+            
         } 
-        
+    }
+
+    /** Kick user out */
+    kickUser(message) {
+       this.user.showShutDownScreen(message, "Lost Access Token")
     }
 
     // Check if user is inside region that is token gated
@@ -528,7 +598,14 @@ export default class TokenGatingPlugin extends BasePlugin {
                     // Let admins bypass denial
                     if(this.isAdmin && !this.adminCheck){
                         this.adminCheck = true
-                        let message = this.dateTimeBlocked ? 'This region is token gated with a token that is not activated yet. Admins can bypass this denial but other users cannot.' : 'This region is token gated with a token you do not posses. Admins can bypass this denial but other users cannot.'
+                        
+                        // TODO: Add link 'this token' for missing token
+                        // Construct error messages
+                        let traitToString = region.token?.traits?.length > 0 ? ` with the following traits: <br><br>` + this.tokenTraitsToString(region.token.traits) : ''
+                        let denialMessage = region.token.denialMessage || `Missing Access Token <br><br> Access to this space requires that visitors hold ${region.token.minAmountHeld} of this <u>token</u>` + traitToString
+                        let deactivatedTokenMessage = `The token assigned to this region is only active ${this.settings.dateFrom ? 'from ' + this.formatDateString(this.settings.dateFrom): 'before'}  ${this.settings.dateTo ? this.settings.dateFrom ? ' and before ' + this.formatDateString(this.settings.dateTo) : this.formatDateString(this.settings.dateTo) : ''}`
+
+                        let message = this.dateTimeBlocked ? deactivatedTokenMessage : denialMessage + ` <br><br> Admins can bypass this denial but other users cannot.`
                         this.menus.alert(message, 'Attempted to deny entry', 'warning')
                         this.currentRegionAccess = true
                         return
@@ -563,7 +640,14 @@ export default class TokenGatingPlugin extends BasePlugin {
                             this.removingUser = true
                             // Set user position to last recorded position before entering zone
                             this.user.setPosition(returnPosition.x, returnPosition.y, returnPosition.z)
-                            let message = this.dateTimeBlocked ? `The token assigned to this region is only valid ${this.settings.dateFrom ? 'from ' + this.settings.dateFrom: 'after'}  ${this.settings.dateTo ? this.settings.dateFrom ? 'and after ' + this.settings.dateTo : this.settings.dateTo : ''}` : region.token.denialMessage ? region.token.denialMessage : 'You do not possess the correct token required to enter this region'
+
+                            // TODO: Add link 'this token' for missing token
+                            // Construct error messages
+                            let traitToString = region.token?.traits?.length > 0 ? ` with the following traits: <br><br>` + this.tokenTraitsToString(region.token.traits) : ''
+                            let denialMessage = region.token.denialMessage || `Missing Access Token <br><br> Access to this space requires that visitors hold ${region.token.minAmountHeld} of this <u>token</u>` + traitToString
+                            let deactivatedTokenMessage = `The token assigned to this region is only active ${this.settings.dateFrom ? 'from ' + this.formatDateString(this.settings.dateFrom): 'before'}  ${this.settings.dateTo ? this.settings.dateFrom ? ' and before ' + this.formatDateString(this.settings.dateTo) : this.formatDateString(this.settings.dateTo) : ''}`
+                            
+                            let message = this.dateTimeBlocked ? deactivatedTokenMessage : denialMessage
                             this.menus.alert(message, 'Entry to region denied', 'error')
                         }
             
@@ -600,8 +684,8 @@ export default class TokenGatingPlugin extends BasePlugin {
                         if(this.settings.restrictDate) {
 
                             let currentDate = new Date()
-                            let dateFrom = this.formatDateString(this.settings.dateFrom)
-                            let dateTo = this.formatDateString(this.settings.dateTo)
+                            let dateFrom = this.convertToDate(this.settings.dateFrom)
+                            let dateTo = this.convertToDate(this.settings.dateTo)
                  
                             // If current date is before dateFrom restriction
                             if(dateFrom) {
@@ -677,6 +761,24 @@ export default class TokenGatingPlugin extends BasePlugin {
         let directionOffset = {x: offset * normalizedDirection.x, y: offset * normalizedDirection.y, z: offset * normalizedDirection.z}
         return directionOffset
 
+    }
+
+    /** Returns traits as a string */
+    tokenTraitsToString(traits, separator='<br>'){
+        let stringArray = []
+        for(let trait of traits){
+            let line = trait.key + ' - ' + trait.value
+            stringArray.push(line)
+        }
+        let string = stringArray.join(separator)
+        return string
+    }
+
+    /** Format date string */
+    formatDateString(date){
+        let splitDate = date.split('T')
+        let string = splitDate.join(" ")
+        return string
     }
 
 

@@ -41,6 +41,17 @@ export default class Token extends React.PureComponent {
         this.updateToken({traits: traits})
     }
 
+    /** Updates trait */
+    updateTrait(trait) {
+        let traits = this.props.token.traits
+        let index = traits.findIndex(t => t.id == trait.id);
+        
+        if(trait.key) traits[index].key = trait.key
+        if(trait.value) traits[index].value = trait.value
+       
+        this.updateToken({traits: traits})
+    }
+
     /** Validates if given contract address exists */
     validateContractAddress(address) {
 
@@ -89,7 +100,9 @@ export default class Token extends React.PureComponent {
 
                 {this.props.token.network == 'vatom' ? <>
 
-                    <LabeledSwitch onToggle={e => this.updateToken({type: this.props.token.type == 'nft' ? 'coin' : 'nft'})} labelLeft={"Smart NFT"} labelRight={"Coins"} direction={this.props.token.type == 'nft' ? 'left' : 'right'}/>
+                    {/*TODO: Add link to "learn more here" */}
+                    <LabeledSwitch onToggle={e => this.updateToken({type: this.props.token.type == 'nft' ? 'coin' : 'nft'})} labelLeft={"Smart NFT"} labelRight={"Coins"} direction={this.props.token.type == 'nft' ? 'left' : 'right'} 
+                    help={this.props.token.type == 'nft' ? 'Choosing this option allows you to restrict access to this space/zone for the most loyal users of your business. Set the minimum number of coins the attendee needs to hold for entry. <br> Learn more here' : null}/>
 
                     <hr style={{ width: 'calc(100% - 40px)', color: 'rgb(255, 255, 255)', opacity: 0.2 }} />
 
@@ -118,17 +131,17 @@ export default class Token extends React.PureComponent {
                 
                 </>}
 
-                <hr style={{ width: 'calc(100% - 40px)', color: 'rgb(255, 255, 255)', opacity: 0.2 }} />
-                
-                <Field name='Zone ID' help='The Zone ID of the region that this token should block. Converts token to region blocking token.'>
-                    <Input type='text' value={this.props.token.zoneID ?? ''} onValue={v => this.updateToken({zoneID: v})} help='Enter the Zone ID for the region that this token will gate.' />
-                </Field>
-
                 <Field name={`Minimum ${this.props.token.network == 'ethereum' ? 'quantity' : this.props.token.type == 'nft' ? "tokens" : "coins"} held`} help='The minimum amount of token keys required to grant access.'>
                     <Input type='number' value={this.props.token.minAmountHeld ?? 1} onValue={v => this.updateToken({minAmountHeld: v})} help='Enter the minimum amount of token keys required to grant access.' />
                 </Field>
 
                 <hr style={{ width: 'calc(100% - 40px)', color: 'rgb(255, 255, 255)', opacity: 0.2 }} />
+
+                <Field name='Zone ID' help='The Zone ID of the region that this token should block. Converts token to region blocking token.'>
+                    <Input type='text' value={this.props.token.zoneID ?? ''} onValue={v => this.updateToken({zoneID: v})} help='Enter the Zone ID for the region that this token will gate.' />
+                </Field>
+
+                {/* <hr style={{ width: 'calc(100% - 40px)', color: 'rgb(255, 255, 255)', opacity: 0.2 }} /> */}
 
                 <Field name={`${this.props.token.zoneID ? 'Region' : 'Space'} Denial Message`} help={`The message you wish to show to users when they are denied access to the ${this.props.token.zoneID ? 'Region' : 'Space'}. If left empty, will use default message.`}/>
                 <Input2 type='textarea' value={this.props.token.denialMessage ?? ''} onValue={v => this.updateToken({denialMessage: v})} help={`Enter the message you wish to show to users when they are denied access to the ${this.props.token.zoneID ? 'Region' : 'Space'} `}/>
@@ -147,9 +160,9 @@ export default class Token extends React.PureComponent {
 
                     {this.props.token.traits.map(trait => <>
                     
-                        <Field style={{display: 'flex', width: '50%'}} name={trait.name} help={`A trait that a user's token must have in order to grant access`}>
-                            <Input style={{padding: '5px 23px'}} type='text' value={trait.key} onValue={v => this.updateToken({})} help={`Enter the key of the required trait for this token`}/>
-                            <Input style={{padding: '5px 23px'}} type='text' value={trait.value} onValue={v => this.updateToken({})} help={`Enter the value of the required trait for this token`}/>
+                        <Field style={{display: 'flex', width: '70%'}} name={trait.name} help={`A trait that a user's token must have in order to grant access`}>
+                            <Input style={{width: 65}} type='text' value={trait.key} onValue={v => this.updateTrait({id: trait.id, key: v})} help={`Enter the key of the token trait`}/>
+                            <Input style={{width: 65}} type='text' value={trait.value} onValue={v => this.updateTrait({id: trait.id, value: v})} help={`Enter the value of the token trait`}/>
                             <img style={{cursor: 'pointer', transform: 'translateY(5px)'}} width={16} height={16} src={require('./trash.svg')} onClick={e => this.deleteTrait(trait.id)}/>
                         </Field>
                     

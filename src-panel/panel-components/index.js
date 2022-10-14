@@ -439,33 +439,56 @@ export const LabeledSwitch = props => {
         if(direction == 'left') return 'right'
         if(direction == 'right') return 'left'
     }
+
+    // On help click
+    function onHelp() {
+
+        // Sanitise HTML input so it's safe and has no XSS script hacks
+        let sanitisedHTML = DOMPurify.sanitize(props.help)
+
+        // Show alert
+        Swal.fire({
+            title: props.name,
+            html: sanitisedHTML,
+            icon: 'info'
+        })
+
+    }
     
     // Component fields
     const [direction, setDirection] = useState(props.direction || 'left')
     const [xPos, setXpos] = useState(props.direction == 'left' ? 0 : switchAmount)
     const [style, setStyle] = useState({transform: `translateX(${xPos}px)`});
 
-    return <div onClick={e => onClick(direction)} style={Object.assign({  
-        display: 'flex',
-        alignItems: 'center',
-        margin: '30px auto',
-        width: 160, 
-        height: 30, 
-        cursor: 'pointer',
-        backgroundColor: props.backgroundColor ? props.backgroundColor : '#FFFFFF',
-        borderRadius: 40, 
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        }, props.style)}>  
+    return <>
+        <div onClick={e => onClick(direction)} style={Object.assign({  
+            display: 'flex',
+            alignItems: 'center',
+            margin: '30px auto',
+            width: 160, 
+            height: 30, 
+            cursor: 'pointer',
+            backgroundColor: props.backgroundColor ? props.backgroundColor : '#FFFFFF',
+            borderRadius: 40, 
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            }, props.style)}>  
 
-        <div style={Object.assign({marginLeft: 1, width: 72, height: 25, transition: 'transform 250ms', backgroundColor: '#FC500E', borderRadius: 40, border: '2px solid #E9ECEF'}, style)} />
+            <div style={Object.assign({marginLeft: 1, width: 72, height: 25, transition: 'transform 250ms', backgroundColor: '#FC500E', borderRadius: 40, border: '2px solid #E9ECEF'}, style)} />
+            
+            <div style={{position: 'absolute'}}>
+                <div style={{float: 'left', marginLeft: 10, fontSize: 10, color: direction == 'left' ? '#FFFFFF' : '#3F4A55'}}>{props.labelLeft}</div>
+                <div style={{float: 'right', marginLeft: 43, fontSize: 10, color: direction == 'right' ? '#FFFFFF' : '#3F4A55'}}>{props.labelRight}</div>
+            </div>  
         
-        <div style={{position: 'absolute'}}>
-            <div style={{float: 'left', marginLeft: 10, fontSize: 10, color: direction == 'left' ? '#FFFFFF' : '#3F4A55'}}>{props.labelLeft}</div>
-            <div style={{float: 'right', marginLeft: 43, fontSize: 10, color: direction == 'right' ? '#FFFFFF' : '#3F4A55'}}>{props.labelRight}</div>
-        </div>      
-        
-    </div>
+        </div>
+
+        { props.help
+                ? <img src={require('./help.svg')} onClick={onHelp} style={{position: 'absolute', width: 16, height: 16, transform: 'translate(235px, -70px)', cursor: 'pointer' }} />
+                : null
+        }    
+
+    </>
 }
 
 /**

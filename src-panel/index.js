@@ -29,6 +29,7 @@ class App extends React.PureComponent {
                 this.setState({settings: e.data.settings})
             }
 
+            // Update component 
             if(e.data.action == 'update-panel') {
                 console.debug("[Token Gating] Updating Panel")
                 this.forceUpdate()
