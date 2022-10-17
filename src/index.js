@@ -54,7 +54,6 @@ export default class TokenGatingPlugin extends BasePlugin {
             }
         })
 
-
         // Get relevant part of userID used for API querying and store it
         let userID = await this.user.getID()
         this.userID = userID.split(':').pop()
@@ -71,7 +70,7 @@ export default class TokenGatingPlugin extends BasePlugin {
     }
 
     /** Called on Unload */
-    onUnload(){
+    onUnload() {
         this.hooks.removeHandler('core.space.enter', this.onSpaceEnter)
         if(this.spaceGatingInterval) clearInterval(this.spaceGatingInterval)
         if(this.regionGatingInterval) clearInterval(this.regionGatingInterval)
@@ -89,6 +88,7 @@ export default class TokenGatingPlugin extends BasePlugin {
         let settings = this.getField('settings')
         if(settings) this.settings = settings
 
+        // Check user's region access
         await this.setRegionAccess()
         
     }
@@ -98,9 +98,18 @@ export default class TokenGatingPlugin extends BasePlugin {
         this.gatedRegions = []
         for(let token of this.tokens) {
             if(token.zoneID) {
+                
+                // Query API to see if user is allowed access to region 
                 let query = this.constructQuery(this.userID, token)
                 let response = query ? await this.user.queryAllowlPermission(query) : {result: false}
                 this.gatedRegions.push({id: token.zoneID, access: response.result, token: token})
+
+                // If in the midst of removing user due to missing token, then stop
+                if(this.missingTokenTimer) {
+                    clearTimeout(this.missingTokenTimer)
+                    this.missingTokenTimer = null
+                }
+
             }
         }
 
