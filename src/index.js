@@ -44,7 +44,7 @@ export default class TokenGatingPlugin extends BasePlugin {
 
         // Create a button in the toolbar
         this.menus.register({
-            icon: this.paths.absolute('button-icon.png'),
+            icon: this.paths.absolute('token.svg'),
             text: 'Tokens',
             inAccordion: true,
             section: 'admin-panel',
