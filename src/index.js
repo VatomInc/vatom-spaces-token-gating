@@ -36,9 +36,6 @@ export default class TokenGatingPlugin extends BasePlugin {
     // Tracks if we are actively removing user from region
     removingUser = false
 
-    // Checks if we have verified that user inside region is an admin
-    adminCheck = false
-
     // Reference to all gated regions and if a user is permitted access to them
     gatedRegions = []
 
@@ -71,9 +68,14 @@ export default class TokenGatingPlugin extends BasePlugin {
         // Checks tokens to grant or deny entry
         this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
 
-        // Periodically check to ensure specified regions are gated
-        this.regionGatingInterval = setInterval(this.gateRegions, 100)
+    }
 
+    /** Called on Unload */
+    onUnload(){
+        this.hooks.removeHandler('core.space.enter', this.onSpaceEnter)
+        if(this.spaceGatingInterval) clearInterval(this.spaceGatingInterval)
+        if(this.regionGatingInterval) clearInterval(this.regionGatingInterval)
+        if(this.missingTokenTimer) clearTimeout(this.missingTokenTimer)
     }
 
     /** Fetches all saved settings and assigns them to plugin variables */
@@ -372,20 +374,38 @@ export default class TokenGatingPlugin extends BasePlugin {
 
     /** Called on space enter */
     onSpaceEnter = async () => {
-        
-        // Gate space on enter
-        await this.gateSpace(false)
-
-        // Periodically check to ensure users still have the correct tokens
-        if(!this.isAdmin) this.spaceGatingInterval = setInterval(async () => { await this.gateSpace(true)}, 15000)
+   
+        try {
+            // If space gating function throws error, intervals wont start (However, admins always enter hence why region interval executes first)
+            if(this.isAdmin) {
+                // Periodically check to ensure specified regions are gated
+                this.regionGatingInterval = setInterval(e => this.gateRegions(), 100)
+                // Gate space on enter
+                await this.gateSpace(false)
+            }
+            else{
+                // Gate space on enter
+                await this.gateSpace(false)
+                // Periodically check to ensure users still have the correct tokens
+                this.spaceGatingInterval = setInterval(e => this.gateSpace(true), 15000)
+                // Periodically check to ensure specified regions are gated
+                this.regionGatingInterval = setInterval(e => this.gateRegions(), 100)
+            }
+        }
+        catch(Err) {
+            throw(Err)
+        }
     
     }
 
     /** Called when attempting to gate a space */
     async gateSpace(insideSpace) {
 
+        // Filter out region blocking tokens
+        let spaceTokens = this.tokens.filter(t => !t.zoneID || t.zoneID == '')
+        
         // Stop if no tokens
-        if(this.tokens.length == 0)
+        if(spaceTokens.length == 0)
             return
         
         // Counters to keep track of how many tokens have granted/denied access
@@ -393,12 +413,7 @@ export default class TokenGatingPlugin extends BasePlugin {
         let accessDenied = 0
  
         // Iterate through all tokens
-        for(let token of this.tokens) {
- 
-            // If token has zoneID field then continue
-            if(token.zoneID) {
-                continue
-            }
+        for(let token of spaceTokens) {
 
             // Construct query based on token parameters for given user ID
             let query = this.constructQuery(this.userID, token)
@@ -467,7 +482,7 @@ export default class TokenGatingPlugin extends BasePlugin {
                 // If condition is 'and', only grant access if all tokens are possessed
                 if(this.settings.multiCondition == 'and') {
                     accessGranted++
-                    if(this.tokens.length == accessGranted){
+                    if(spaceTokens.length == accessGranted){
                         console.debug(`[Token Gating] Entry Granted. User possesses the correct tokens in their wallet.`)
                         // If in the midst of removing user due to missing token, then stop
                         if(this.missingTokenTimer) {
@@ -509,7 +524,7 @@ export default class TokenGatingPlugin extends BasePlugin {
                 }
                 else { // Otherwise, condition is 'or' so only throw error if no tokens are possessed
                     accessDenied++
-                    if(this.tokens.length == accessDenied) {
+                    if(spaceTokens.length == accessDenied) {
                         if(insideSpace) {
                             if(!this.missingTokenTimer){
                                 this.menus.alert(lostTokenMessage, 'Lost Access Token', 'info')
@@ -530,6 +545,12 @@ export default class TokenGatingPlugin extends BasePlugin {
 
     /** Kick user out */
     kickUser(message) {
+        
+        // Clear Timers
+        clearInterval(this.regionGatingInterval)
+        clearInterval(this.spaceGatingInterval)
+
+        // Open shut down screen 
        this.user.showShutDownScreen(message, "Lost Access Token")
     }
 
@@ -570,8 +591,8 @@ export default class TokenGatingPlugin extends BasePlugin {
     }
 
     /** Token gate regions specified by tokens */
-    gateRegions = async () => {
-     
+    async gateRegions() {
+
         // Return if no regions are gated
         if(this.gatedRegions.length == 0){
             return
@@ -581,153 +602,163 @@ export default class TokenGatingPlugin extends BasePlugin {
         for(let region of this.gatedRegions) {
 
             // Check if current user is inside zone specified by token
-            let userInsideRegion = await this.userInsideRegion(region.id)
-            if(userInsideRegion) {
+            let insideRegion = await this.userInsideRegion(region.id)
+            if(insideRegion) {
+                this.currentRegion = region
+                break
+            }
+            else{
+                this.currentRegion = null
+            }      
+                
+        }       
 
-                // Stop if actively removing user already
-                if(this.removingUser)
-                    return
+        if(this.currentRegion) {
 
-                // Stop if admin status is verified 
-                if(this.adminCheck)
-                    return
-
-                // If we have checked the current region and denied access, then kick user out
-                if(this.currentRegionCheck && !this.currentRegionAccess) {
-
-                    // Let admins bypass denial
-                    if(this.isAdmin && !this.adminCheck){
-                        this.adminCheck = true
-                        
-                        // TODO: Add link 'this token' for missing token
-                        // Construct error messages
-                        let traitToString = region.token?.traits?.length > 0 ? ` with the following traits: <br><br>` + this.tokenTraitsToString(region.token.traits) : ''
-                        let denialMessage = region.token.denialMessage || `Missing Access Token <br><br> Access to this space requires that visitors hold ${region.token.minAmountHeld} of this <u>token</u>` + traitToString
-                        let deactivatedTokenMessage = `The token assigned to this region is only active ${this.settings.dateFrom ? 'from ' + this.formatDateString(this.settings.dateFrom): 'before'}  ${this.settings.dateTo ? this.settings.dateFrom ? ' and before ' + this.formatDateString(this.settings.dateTo) : this.formatDateString(this.settings.dateTo) : ''}`
-
-                        let message = this.dateTimeBlocked ? deactivatedTokenMessage : denialMessage + ` <br><br> Admins can bypass this denial but other users cannot.`
-                        this.menus.alert(message, 'Attempted to deny entry', 'warning')
-                        this.currentRegionAccess = true
-                        return
-                    }
-
-                    if(this.lastUserPosition) {
-                        
-                        // Get user's current position 
-                        let currentPosition = await this.user.getPosition()
-                        
-                        // Get normalized direction vector with offset added
-                        let directionOffset = this.getNormalizedDirectionVector(this.lastUserPosition, currentPosition, 3)
-    
-                        if(directionOffset){
-                            // Record position user should be returned to if they are kicked out of the region
-                            this.returnPosition = {
-                                x: currentPosition.x + directionOffset.x,
-                                y: currentPosition.y + directionOffset.y,
-                                z: currentPosition.z + directionOffset.z
-                            }
-                        }
-    
-                    }
-
-                    // Set return position to our return position reference or last tracked user position as backup
-                    let returnPosition = this.returnPosition || this.lastUserPosition
-                    
-                    // If we know user's last position before entering zone
-                    if(returnPosition){
-                        // If we aren't already removing user 
-                        if(!this.removingUser) {
-                            this.removingUser = true
-                            // Set user position to last recorded position before entering zone
-                            this.user.setPosition(returnPosition.x, returnPosition.y, returnPosition.z)
-
-                            // TODO: Add link 'this token' for missing token
-                            // Construct error messages
-                            let traitToString = region.token?.traits?.length > 0 ? ` with the following traits: <br><br>` + this.tokenTraitsToString(region.token.traits) : ''
-                            let denialMessage = region.token.denialMessage || `Missing Access Token <br><br> Access to this space requires that visitors hold ${region.token.minAmountHeld} of this <u>token</u>` + traitToString
-                            let deactivatedTokenMessage = `The token assigned to this region is only active ${this.settings.dateFrom ? 'from ' + this.formatDateString(this.settings.dateFrom): 'before'}  ${this.settings.dateTo ? this.settings.dateFrom ? ' and before ' + this.formatDateString(this.settings.dateTo) : this.formatDateString(this.settings.dateTo) : ''}`
-                            
-                            let message = this.dateTimeBlocked ? deactivatedTokenMessage : denialMessage
-                            this.menus.alert(message, 'Entry to region denied', 'error')
-                        }
-            
-                    }
-                    else {
-                        // Edge Case: If user's last known position isn't recorded, just move user out slowly in a direction based on region scale
-                        let position = await this.user.getPosition()
-                        if(!this.currentRegion) this.currentRegion = await this.objects.get(region.id)
-                        if(this.currentRegion){
-                            if(this.currentRegion.scale_x > this.currentRegion.scale_z) {
-                                this.user.setPosition(position.x, position.y, position.z + 2)
-                            }
-                            else if (this.currentRegion.scale_x < this.currentRegion.scale_z) {
-                                this.user.setPosition(position.x + 2, position.y, position.z)
-                            }
-                            else{
-                                this.user.setPosition(position.x + 2, position.y, position.z + 2)
-                            }
-                        }
-                    }
-
-                }
-
-                // If we have not yet checked the current region
-                if(!this.currentRegionCheck) {
-                                         
-                    // Track reference to API result
-                    this.currentRegionAccess = region.access
-                   
-                    // If We have been granted access to the region
-                    if(this.currentRegionAccess) {
-                        
-                        // If dates are restricted
-                        if(this.settings.restrictDate) {
-
-                            let currentDate = new Date()
-                            let dateFrom = this.convertToDate(this.settings.dateFrom)
-                            let dateTo = this.convertToDate(this.settings.dateTo)
-                 
-                            // If current date is before dateFrom restriction
-                            if(dateFrom) {
-                                if(currentDate < dateFrom){
-                                    console.warn(`[Token Gating] Entry Denied. Tokens for this space will only activate post the following date and time: ${dateFrom}`)
-                                    this.dateTimeBlocked = true
-                                    this.currentRegionAccess = false
-                                }
-                            }
-        
-                            // If current date is after dateTo restriction
-                            if(dateTo) {
-                                if(currentDate > dateTo){
-                                    console.warn(`[Token Gating] Entry Denied. Tokens for this space are no longer active post the following date and time: ${dateTo}`)
-                                    this.dateTimeBlocked = true
-                                    this.currentRegionAccess = false
-                                }
-                            }
-                 
-                        }
-                    }
-
-                    console.debug(`[Token Gating] Entry ${region.access ? 'Granted' : 'Denied'} to region with ID: ${region.id}`)                    
-
-                    // Current region check over
-                    this.currentRegionCheck = true
-
-                }
-
+            // Stop if actively removing user already
+            if(this.removingUser)
                 return
 
+            // Stop if already given access
+            if(this.currentRegionAccess)
+                return
+
+            // If we have checked the current region and denied access, then kick user out
+            if(this.currentRegionCheck && !this.currentRegionAccess) {
+
+                // Let admins bypass denial
+                if(this.isAdmin) {
+                    
+                    // TODO: Add link 'this token' for missing token
+                    // Construct error messages
+                    let traitToString = this.currentRegion.token?.traits?.length > 0 ? ` with the following traits: <br><br>` + this.tokenTraitsToString(this.currentRegion.token.traits) : ''
+                    let denialMessage = this.currentRegion.token.denialMessage || `Missing Access Token <br><br> Access to this space requires that visitors hold ${this.currentRegion.token.minAmountHeld} of this <u>token</u>` + traitToString
+                    let deactivatedTokenMessage = `The token assigned to this region is only active ${this.settings.dateFrom ? 'from ' + this.formatDateString(this.settings.dateFrom): 'before'}  ${this.settings.dateTo ? this.settings.dateFrom ? ' and before ' + this.formatDateString(this.settings.dateTo) : this.formatDateString(this.settings.dateTo) : ''}`
+
+                    // Display message
+                    let message = this.dateTimeBlocked ? deactivatedTokenMessage : denialMessage + ` <br><br> Admins can bypass this denial but other users cannot.`
+                    this.menus.alert(message, 'Attempted to deny entry', 'warning')
+                    
+                    // Grant access to user
+                    this.currentRegionAccess = true
+                    
+                    return
+                }
+
+                // If we have a recorded last position
+                if(this.lastUserPosition) {
+                    
+                    // Get user's current position 
+                    let currentPosition = await this.user.getPosition()
+                    
+                    // Get normalized direction vector with offset added
+                    let directionOffset = this.getNormalizedDirectionVector(this.lastUserPosition, currentPosition, 3)
+
+                    if(directionOffset){
+                        // Record position user should be returned to if they are kicked out of the region
+                        this.returnPosition = {
+                            x: currentPosition.x + directionOffset.x,
+                            y: currentPosition.y + directionOffset.y,
+                            z: currentPosition.z + directionOffset.z
+                        }
+                    }
+
+                }
+
+                // Set return position to our return position reference or last tracked user position as backup
+                let returnPosition = this.returnPosition || this.lastUserPosition
+                
+                // If we know user's last position before entering zone
+                if(returnPosition){
+                    // If we aren't already removing user 
+                    if(!this.removingUser) {
+                        this.removingUser = true
+                        // Set user position to last recorded position before entering zone
+                        this.user.setPosition(returnPosition.x, returnPosition.y, returnPosition.z)
+
+                        // TODO: Add link 'this token' for missing token
+                        // Construct error messages
+                        let traitToString = this.currentRegion.token?.traits?.length > 0 ? ` with the following traits: <br><br>` + this.tokenTraitsToString(this.currentRegion.token.traits) : ''
+                        let denialMessage = this.currentRegion.token.denialMessage || `Missing Access Token <br><br> Access to this space requires that visitors hold ${this.currentRegion.token.minAmountHeld} of this <u>token</u>` + traitToString
+                        let deactivatedTokenMessage = `The token assigned to this region is only active ${this.settings.dateFrom ? 'from ' + this.formatDateString(this.settings.dateFrom): 'before'}  ${this.settings.dateTo ? this.settings.dateFrom ? ' and before ' + this.formatDateString(this.settings.dateTo) : this.formatDateString(this.settings.dateTo) : ''}`
+                        
+                        // Show popup
+                        let message = this.dateTimeBlocked ? deactivatedTokenMessage : denialMessage
+                        this.menus.alert(message, 'Entry to region denied', 'error')
+                    }
+        
+                }
+                else {
+                    // Edge Case: If user's last known position isn't recorded, just move user out slowly in a direction based on region scale
+                    let position = await this.user.getPosition()
+                    if(!this.currentRegionProps) this.currentRegionProps = await this.objects.get(this.currentRegion.id)
+                    if(this.regionMapItem){
+                        if(this.currentRegionProps.scale_x > this.currentRegionProps.scale_z) {
+                            this.user.setPosition(position.x, position.y, position.z + 2)
+                        }
+                        else if (this.currentRegionProps.scale_x < this.currentRegionProps.scale_z) {
+                            this.user.setPosition(position.x + 2, position.y, position.z)
+                        }
+                        else{
+                            this.user.setPosition(position.x + 2, position.y, position.z + 2)
+                        }
+                    }
+                }
+
             }
-            else {
-                // If user not inside region, set vars to false and track user position
-                if(this.currentRegionCheck) this.currentRegionCheck = false
-                if(this.currentRegionAccess) this.currentRegionAccess = false
-                if(this.removingUser) this.removingUser = false
-                if(this.dateTimeBlocked) this.dateTimeBlocked = false
-                if(this.adminCheck) this.adminCheck = false
-                this.lastUserPosition = await this.user.getPosition()
+
+            // If we have not yet checked the current region
+            if(!this.currentRegionCheck) {
+                                     
+                // Track reference to API result
+                this.currentRegionAccess = this.currentRegion.access
+               
+                // If We have been granted access to the region
+                if(this.currentRegionAccess) {
+                    
+                    // If dates are restricted
+                    if(this.settings.restrictDate) {
+
+                        let currentDate = new Date()
+                        let dateFrom = this.convertToDate(this.settings.dateFrom)
+                        let dateTo = this.convertToDate(this.settings.dateTo)
+             
+                        // If current date is before dateFrom restriction
+                        if(dateFrom) {
+                            if(currentDate < dateFrom){
+                                console.warn(`[Token Gating] Entry Denied. Tokens for this space will only activate post the following date and time: ${dateFrom}`)
+                                this.dateTimeBlocked = true
+                                this.currentRegionAccess = false
+                            }
+                        }
+    
+                        // If current date is after dateTo restriction
+                        if(dateTo) {
+                            if(currentDate > dateTo){
+                                console.warn(`[Token Gating] Entry Denied. Tokens for this space are no longer active post the following date and time: ${dateTo}`)
+                                this.dateTimeBlocked = true
+                                this.currentRegionAccess = false
+                            }
+                        }
+             
+                    }
+                }
+
+                console.debug(`[Token Gating] Entry ${this.currentRegion.access ? 'Granted' : 'Denied'} to region with ID: ${this.currentRegion.id}`)                    
+
+                // Current region check over
+                this.currentRegionCheck = true
+
             }
-           
+
+        }
+        else{
+            // If user not inside region, set vars to false and track user position
+            if(this.currentRegionCheck) this.currentRegionCheck = false
+            if(this.currentRegionAccess) this.currentRegionAccess = false
+            if(this.removingUser) this.removingUser = false
+            if(this.dateTimeBlocked) this.dateTimeBlocked = false
+            this.lastUserPosition = await this.user.getPosition()
         }
 
     }

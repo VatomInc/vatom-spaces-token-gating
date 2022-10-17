@@ -3,6 +3,7 @@ import Token from './token';
 import { Button, SplitButton, SplitButtonSection } from './panel-components';
 import { v4 as uuidv4 } from 'uuid' 
 import JSFileManager, { JSFile } from 'js-file-manager'
+import Swal from 'sweetalert2';
 
 export default class TokenList extends React.PureComponent {
  
@@ -15,7 +16,7 @@ export default class TokenList extends React.PureComponent {
 
             <div style={{padding: 5}}/>
 
-            <Button title='Add token' onClick={e => this.createToken()} style={{color: '#2EA7FF', backgroundColor: '#F8F9FA', border: '1px solid #CED4DA', borderRadius: 3, height: 28}}/>
+            <Button title='Add token' onClick={async e => await this.createToken()} style={{color: '#2EA7FF', backgroundColor: '#F8F9FA', border: '1px solid #CED4DA', borderRadius: 3, height: 28}}/>
 
             <SplitButton>
                 <SplitButtonSection title='Load Rules' backgroundColor={'#F8F9FA'}  color={'#2EA7FF'} height={38} onClick={e => this.loadTokens()} />
@@ -26,17 +27,29 @@ export default class TokenList extends React.PureComponent {
     }
 
     /** Creates new token and sends it to plugin  */
-    createToken() {
+    async createToken() {
         console.debug('[Token Gating] Creating token from panel')
 
         // Create ID
         let id = uuidv4()
-        
-        // Create Name
-        let tokenNum = this.props.tokens.length+1
-        let name = "Token " + tokenNum
 
-        // New token (default fields)
+        // Create default name
+        let tokenNum = this.props.tokens.length+1
+        let defaultName = "Token " + tokenNum
+
+        const {value} = await Swal.fire({
+            icon: 'info',
+            title: 'Create Token',
+            text: 'Please enter the name of your new token',
+            input: 'text',
+            // inputValue: defaultName,
+            inputPlaceholder: 'Enter Token Name...'
+        })
+
+        // Create token name
+        let name = value || defaultName
+        
+        // New token
         let token = {id: id, 
             name: name, 
             network: 'vatom', 
