@@ -694,13 +694,13 @@ export default class TokenGatingPlugin extends BasePlugin {
                     if(!this.currentRegionProps) this.currentRegionProps = await this.objects.get(this.currentRegion.id)
                     if(this.regionMapItem){
                         if(this.currentRegionProps.scale_x > this.currentRegionProps.scale_z) {
-                            this.user.setPosition(position.x, position.y, position.z + 2)
+                            this.user.setPosition(position.x, position.y, position.z + 1)
                         }
                         else if (this.currentRegionProps.scale_x < this.currentRegionProps.scale_z) {
-                            this.user.setPosition(position.x + 2, position.y, position.z)
+                            this.user.setPosition(position.x + 1, position.y, position.z)
                         }
                         else{
-                            this.user.setPosition(position.x + 2, position.y, position.z + 2)
+                            this.user.setPosition(position.x + 1, position.y, position.z + 1)
                         }
                     }
                 }
