@@ -8,6 +8,9 @@
  * @license MIT
  * @author Vatom Inc.
  */
+
+ import { marked } from 'marked'
+
 export default class TokenGatingPlugin extends BasePlugin {
 
     /** Plugin info */
@@ -516,8 +519,8 @@ export default class TokenGatingPlugin extends BasePlugin {
                 // TODO: Add link 'token' for missing token
                 // Construct error messages
                 let traitToString = token?.traits?.length > 0 ? ` with the following traits: <br><br>` + this.tokenTraitsToString(token.traits) : ''
-                let denialMessage = token.denialMessage || `Missing Access Token <br><br> Access to this space requires that visitors hold ${token.minAmountHeld} of this <u>token</u>` + traitToString
-                let lostTokenMessage = `Leaving Space in 60 seconds <br><br> Access to this space requires that visitors hold ${token.minAmountHeld} of this token` + traitToString
+                let denialMessage = marked.parse(token.denialMessage) || `Missing Access Token <br><br> Access to this space requires that visitors hold ${token.minAmountHeld} of the missing token` + traitToString
+                let lostTokenMessage = `Leaving Space in 60 seconds <br><br> Access to this space requires that visitors hold ${token.minAmountHeld} of the missing token` + traitToString
 
                 // If condition is 'and', simply throw error
                 if(this.settings.multiCondition == 'and') {
@@ -638,10 +641,9 @@ export default class TokenGatingPlugin extends BasePlugin {
                 // Let admins bypass denial
                 if(this.isAdmin) {
                     
-                    // TODO: Add link 'this token' for missing token
                     // Construct error messages
                     let traitToString = this.currentRegion.token?.traits?.length > 0 ? ` with the following traits: <br><br>` + this.tokenTraitsToString(this.currentRegion.token.traits) : ''
-                    let denialMessage = this.currentRegion.token.denialMessage || `Missing Access Token <br><br> Access to this space requires that visitors hold ${this.currentRegion.token.minAmountHeld} of this <u>token</u>` + traitToString
+                    let denialMessage = marked.parse(this.currentRegion.token.denialMessage) || `Missing Access Token <br><br> Access to this space requires that visitors hold ${this.currentRegion.token.minAmountHeld} of the missing token` + traitToString
                     let deactivatedTokenMessage = `The token assigned to this region is only active ${this.settings.dateFrom ? 'from ' + this.formatDateString(this.settings.dateFrom): 'before'}  ${this.settings.dateTo ? this.settings.dateFrom ? ' and before ' + this.formatDateString(this.settings.dateTo) : this.formatDateString(this.settings.dateTo) : ''}`
 
                     // Display message
@@ -685,10 +687,9 @@ export default class TokenGatingPlugin extends BasePlugin {
                         // Set user position to last recorded position before entering zone
                         this.user.setPosition(returnPosition.x, returnPosition.y, returnPosition.z)
 
-                        // TODO: Add link 'this token' for missing token
                         // Construct error messages
                         let traitToString = this.currentRegion.token?.traits?.length > 0 ? ` with the following traits: <br><br>` + this.tokenTraitsToString(this.currentRegion.token.traits) : ''
-                        let denialMessage = this.currentRegion.token.denialMessage || `Missing Access Token <br><br> Access to this space requires that visitors hold ${this.currentRegion.token.minAmountHeld} of this <u>token</u>` + traitToString
+                        let denialMessage = marked.parse(this.currentRegion.token.denialMessage) || `Missing Access Token <br><br> Access to this space requires that visitors hold ${this.currentRegion.token.minAmountHeld} of the missing token` + traitToString
                         let deactivatedTokenMessage = `The token assigned to this region is only active ${this.settings.dateFrom ? 'from ' + this.formatDateString(this.settings.dateFrom): 'before'}  ${this.settings.dateTo ? this.settings.dateFrom ? ' and before ' + this.formatDateString(this.settings.dateTo) : this.formatDateString(this.settings.dateTo) : ''}`
                         
                         // Show popup
