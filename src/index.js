@@ -677,7 +677,7 @@ class TokenGate extends BaseComponent {
    
     /** Triggered when clicking object component is attached to */
     onClick() {
-        if(this.getField('clickable')) {
+        if(this.plugin.isAdmin && this.getField('clickable')) {
             this.openTokenMenu()
         }
     }
