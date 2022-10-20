@@ -10,7 +10,7 @@ export default class Token extends React.PureComponent {
     updateToken(data) {
         
         try {
-            let message = {action: 'update-token', id: this.props.token.id, properties: data}
+            let message = {action: 'update-token', id: this.props.token.id, properties: data, regionID: this.props.regionID}
             window.parent.postMessage(message, '*');
         }
         catch(err) {
@@ -21,7 +21,7 @@ export default class Token extends React.PureComponent {
 
     /** Deletes this token */
     deleteToken() {
-        window.parent.postMessage({action: 'delete-token', id: this.props.token.id}, '*');
+        window.parent.postMessage({action: 'delete-token', id: this.props.token.id, regionID: this.props.regionID}, '*');
         this.forceUpdate()
     }
 
@@ -137,14 +137,10 @@ export default class Token extends React.PureComponent {
 
                 <hr style={{ width: 'calc(100% - 40px)', color: 'rgb(255, 255, 255)', opacity: 0.2 }} />
 
-                <Field name='Zone ID' help='The Zone ID of the region that this token should block. Converts token to region blocking token.'>
-                    <Input type='text' value={this.props.token.zoneID ?? ''} onValue={v => this.updateToken({zoneID: v})} help='Enter the Zone ID for the region that this token will gate.' />
-                </Field>
-
                 {/* <hr style={{ width: 'calc(100% - 40px)', color: 'rgb(255, 255, 255)', opacity: 0.2 }} /> */}
 
-                <Field name={`${this.props.token.zoneID ? 'Region' : 'Space'} Denial Message`} help={`The message you wish to show to users when they are denied access to the ${this.props.token.zoneID ? 'Region' : 'Space'}. If left empty, will use default message.`}/>
-                <Input2 type='textarea' value={this.props.token.denialMessage ?? ''} onValue={v => this.updateToken({denialMessage: v})} help={`Enter the message you wish to show to users when they are denied access to the ${this.props.token.zoneID ? 'Region' : 'Space'} `}/>
+                <Field name={'Custom Denial Message'} help={'The message you wish to show to users when users are denied access to the space. Supports Markdown & HTML. If left empty, will use default message.'}/>
+                <Input2 type='textarea' value={this.props.token.denialMessage ?? ''} onValue={v => this.updateToken({denialMessage: v})} help={'Enter the message you wish to show to users when they are denied access to the space. Supports Markdown & HTML. If left empty, will use default message.'}/>
 
                 {this.props.token.type != 'coin' ? <>
                 

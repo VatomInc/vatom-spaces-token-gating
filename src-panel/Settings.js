@@ -9,7 +9,7 @@ export default class Settings extends React.PureComponent {
         console.debug('[Token Gating] Panel settings updated: ', data)
 
         try {
-            let message = {action: 'update-settings', settings: data}
+            let message = {action: 'update-settings', settings: data, regionID: this.props.regionID}
             window.parent.postMessage(message, '*');
         }
         catch(err) {

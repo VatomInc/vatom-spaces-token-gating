@@ -12,7 +12,7 @@ export default class TokenList extends React.PureComponent {
 
         return <>
     
-            {this.props.tokens.map(token => <Token token={token} />)}
+            {this.props.tokens.map(token => token.regionID == this.props.regionID ? <Token token={token} regionID={this.props.regionID} /> : null)}
 
             <div style={{padding: 5}}/>
 
@@ -57,7 +57,7 @@ export default class TokenList extends React.PureComponent {
             campaignID: null, 
             objectID: null, 
             businessID: null, 
-            zoneID: null,
+            regionID: this.props.regionID || null,
             minAmountHeld: 1,
             contractAddress: null,
             heldSince: null,
@@ -66,7 +66,7 @@ export default class TokenList extends React.PureComponent {
             traits: []}
 
         // Send new token to plugin
-        window.parent.postMessage({action: 'add-token', token: token}, '*');
+        window.parent.postMessage({action: 'add-token', token: token, regionID: this.props.regionID}, '*');
     }
 
     /** Loads token rules as a JSON file */

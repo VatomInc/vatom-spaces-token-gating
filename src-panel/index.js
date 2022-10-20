@@ -8,10 +8,18 @@ class App extends React.PureComponent {
 
     state = {
         tokens: null,
-        settings: null
+        settings: null,
+        region: null
     }
 
     componentDidMount() {
+
+        // If we are opening via component set region data
+        let region, text = window.location.hash.slice(1)
+        if(text) {
+            region = JSON.parse(text.replaceAll(`%22`, `"`))
+            this.setState({region: region})
+        }
 
         window.addEventListener('message', e => {
             
@@ -19,19 +27,24 @@ class App extends React.PureComponent {
             
             // If plugin is sending us reference to existing tokens
             if(e.data.action == 'send-tokens') {
-                console.debug("[Token Gating] Panel received tokens")
+                // console.debug("[Token Gating] Panel received tokens")
                 this.setState({tokens: e.data.tokens})
             }
 
             // If plugins is sending us reference to existing settings
             if(e.data.action == 'send-settings') {
-                console.debug("[Token Gating] Panel received settings")
-                this.setState({settings: e.data.settings})
+                // console.debug("[Token Gating] Panel received settings")
+                if(e.data.regionID){
+                    this.setState({ region: Object.assign({}, this.state.region, {settings: e.data.settings})})
+                }
+                else{
+                    this.setState({settings: e.data.settings})
+                }
             }
 
             // Update component 
             if(e.data.action == 'update-panel') {
-                console.debug("[Token Gating] Updating Panel")
+                // console.debug("[Token Gating] Updating Panel")
                 this.forceUpdate()
             }
         })
@@ -45,8 +58,8 @@ class App extends React.PureComponent {
     /** Render */
     render = () => <>
 
-        {this.state.settings ? <Settings settings={this.state.settings}/> : null}
-        {this.state.tokens ? <TokenList tokens={this.state.tokens}/> : null}
+        {this.state.settings ? <Settings settings={this.state.region ? this.state.region.settings : this.state.settings} regionID={this.state.region?.id} /> : null}
+        {this.state.tokens ? <TokenList tokens={this.state.tokens} regionID={this.state.region?.id}/> : null}
      
     </>
 
