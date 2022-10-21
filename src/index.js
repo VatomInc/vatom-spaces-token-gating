@@ -671,7 +671,7 @@ class TokenGate extends BaseComponent {
                 this.tokens.push({properties: token, access: response.result})
             }
             else{
-                console.warn('[Token Gating] API query is null or undefined') 
+                console.error('[Token Gating] API query was null or undefined. User will be allowed entry to region.')
                 // Push token (with access state = true) if query is null
                 this.tokens.push({properties: token, access: true})
             }
