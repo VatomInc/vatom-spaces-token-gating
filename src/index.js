@@ -395,6 +395,16 @@ export default class TokenGatingPlugin extends BasePlugin {
     /** Called when attempting to gate a space */
     async gateSpace(insideSpace) {
 
+        // Stop space gating interval and clear lost token timer if user was made into admin
+        this.isAdmin = await this.user.isAdmin()
+        if(this.isAdmin && insideSpace){
+            if(this.spaceGatingInterval) clearInterval(this.spaceGatingInterval)
+            this.spaceGatingInterval = null
+            if(this.missingTokenTimer) clearTimeout(this.missingTokenTimer)
+            this.missingTokenTimer = null
+            return
+        }
+
         // Filter out region blocking tokens
         let spaceTokens = this.tokens.filter(t => !t.regionID || t.regionID == '')
         
