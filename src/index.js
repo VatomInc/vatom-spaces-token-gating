@@ -398,10 +398,14 @@ export default class TokenGatingPlugin extends BasePlugin {
         // Stop space gating interval and clear lost token timer if user was made into admin
         this.isAdmin = await this.user.isAdmin()
         if(this.isAdmin && insideSpace){
-            if(this.spaceGatingInterval) clearInterval(this.spaceGatingInterval)
-            this.spaceGatingInterval = null
-            if(this.missingTokenTimer) clearTimeout(this.missingTokenTimer)
-            this.missingTokenTimer = null
+            if(this.spaceGatingInterval) {
+                clearInterval(this.spaceGatingInterval)
+                this.spaceGatingInterval = null
+            }
+            if(this.missingTokenTimer) {
+                clearTimeout(this.missingTokenTimer)
+                this.missingTokenTimer = null
+            }
             return
         }
 
