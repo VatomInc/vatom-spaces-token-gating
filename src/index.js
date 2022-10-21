@@ -64,7 +64,7 @@ export default class TokenGatingPlugin extends BasePlugin {
         this.isAdmin = await this.user.isAdmin()
 
         // Fetch all saved fields
-        this.getSavedSettings()
+        this.getSaved()
 
         // Checks tokens to grant or deny entry
         this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
@@ -80,7 +80,7 @@ export default class TokenGatingPlugin extends BasePlugin {
     }
 
     /** Fetches all saved settings and assigns them to plugin variables */
-    async getSavedSettings() {
+    async getSaved() {
         
         // Get saved tokens
         let savedTokens = this.getField('tokens')
@@ -118,13 +118,7 @@ export default class TokenGatingPlugin extends BasePlugin {
 
             // If we received a region, then update component settings
             if(e.regionID) {
-                let components = this.objects.getComponentInstances()
-                let component = components.find(c => c.objectID == e.regionID)
-                let settings = component.settings
-                settings[key] = value
-                this.hooks.trigger('set-region-settings', {regionID: e.regionID, settings: settings})
-                this.menus.postMessage({action: 'send-settings', regionID: e.regionID, settings: settings}, '*')
-                this.messages.send({action: 'refresh-settings', userID: this.userID, regionID: e.regionID, settings: settings})
+                this.hooks.trigger('set-region-settings', {regionID: e.regionID, key: key, value: value})
                 return
             }
 
@@ -603,9 +597,8 @@ class TokenGate extends BaseComponent {
         // Get region that component is attached to
         this.region = await this.plugin.objects.get(this.objectID)
         
-        // Get saved settings
-        let settings = this.getField('settings')
-        if(settings) this.settings = settings
+        // Get Saved Fields
+        this.getSaved()
 
         // Hooks to update region tokens and settings
         this.plugin.hooks.addHandler('set-region-settings', this.setSettings)
@@ -622,6 +615,13 @@ class TokenGate extends BaseComponent {
         clearInterval(this.regionGatingInterval)
     }
 
+    /** Get saved fields */
+    getSaved() {
+
+        // Get saved settings
+        let settings = this.getField('settings')
+        if(settings) this.settings = settings
+    }
 
     /** Sets region settings */
     setSettings = async e => {
@@ -630,10 +630,14 @@ class TokenGate extends BaseComponent {
         if(e.regionID != this.region.id){
             return
         }
-        
+
         // Set and save settings
-        this.settings = e.settings
+        this.settings[e.key] = e.value
         await this.setField('settings', this.settings)
+
+        // Update panel
+        this.plugin.menus.postMessage({action: 'send-settings', regionID: e.regionID, settings: this.settings}, '*')
+        this.plugin.messages.send({action: 'refresh-settings', userID: this.plugin.userID, regionID: e.regionID, settings: this.settings})
     }
 
     /** Sets region tokens */
