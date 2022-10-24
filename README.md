@@ -25,14 +25,14 @@ This plugin is used for token gating inside of spaces (Experimental)
 
 > **Note:** You can only sideload plugins in a space you are the owner of.
 
-## Using the plugin (Version 0.9)
-- Open the tokens menu (via button on bottom bar)
+## Using the plugin (Version 1)
+- Open the tokens menu (inside admin button on bottom bar)
 - Create token/s
-- Input fields to specify token rules
+- Input fields to specify token rules. Tokens will only activate once a necessary fields (e.g. CampaignID or ObjectID) are filled in.
 - Can delete token if/when necessary.
-- Inputting a Zone ID will make token gate the given zone instead of the space.
+- Can specify settings such as multi-condition or time/date restriction
+- You can add a token gating component to zone objects. This will allow gating that specific zone. Will have same UI as standard token-gating panel.
 - You can save and load your token rules via the buttons at the bottom of the panel.
-- You can set general settings that apply to all token rules at the top of the panel.
 
 **Note** Admins by design. Will bypass all entry denial. A popup will be displayed to notify user of this. <br />
 **Note** The API query might take few seconds to return before granting or denying entrance to space.
