@@ -249,6 +249,7 @@ export default class TokenGatingPlugin extends BasePlugin {
 
         // Called when a user's admin status changes
         if(e.action == 'admin-status-changed'){
+            this.isAdmin = e.isAdmin
             this.gateSpace(true)
         }
 
@@ -387,7 +388,8 @@ export default class TokenGatingPlugin extends BasePlugin {
     /** Called when user properties changed */
     onUserPropertiesChanged = e => {
         if(e.changes.auth){
-            this.messages.send({action: 'admin-status-changed'}, false, e.userID)
+            let isAdmin = e.changes.auth == 'admin' ? true : false
+            this.messages.send({action: 'admin-status-changed', isAdmin: isAdmin}, false, e.userID)
         }
 
     }
@@ -430,9 +432,7 @@ export default class TokenGatingPlugin extends BasePlugin {
     /** Called when attempting to gate a space */
     async gateSpace(insideSpace) {
 
-        console.log("GATE SPACE")
         // Stop space gating interval and clear lost token timer if user was made into admin
-        this.isAdmin = await this.user.isAdmin()
         if(this.isAdmin && insideSpace){
             if(this.missingTokenTimer) {
                 clearTimeout(this.missingTokenTimer)
