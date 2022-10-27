@@ -30,6 +30,9 @@ export default class TokenGatingPlugin extends BasePlugin {
     // Reference to user's admin status
     isAdmin = false
 
+    // Reference to wether or not user is inside space yet
+    insideSpace = false
+
     /** Called on load */
     async onLoad() {
 
@@ -66,16 +69,18 @@ export default class TokenGatingPlugin extends BasePlugin {
         // Fetch all saved fields
         this.getSaved()
 
-        // Checks tokens to grant or deny entry
+        // Add hooks
         this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
+        this.hooks.addHandler('wallet.refreshInventory', this.onWalletInventoryChanged)
+        this.hooks.addHandler('user.properties.changed', this.onUserPropertiesChanged)
 
     }
 
     /** Called on Unload */
     onUnload() {
         this.hooks.removeHandler('core.space.enter', this.onSpaceEnter)
-        if(this.spaceGatingInterval) clearInterval(this.spaceGatingInterval)
-        if(this.regionGatingInterval) clearInterval(this.regionGatingInterval)
+        this.hooks.removeHandler('wallet.refreshInventory', this.onWalletInventoryChanged)
+        this.hooks.removeHandler('user.properties.changed', this.onUserPropertiesChanged)
         if(this.missingTokenTimer) clearTimeout(this.missingTokenTimer)
     }
 
@@ -124,11 +129,10 @@ export default class TokenGatingPlugin extends BasePlugin {
 
             // Set new setting value and save
             this.settings[key] = value
+            // Save new settings
             await this.setField('settings', this.settings)
-           
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-settings', settings: this.settings}, '*')
-
             // Send message to notify other users that tokens have changed
             this.messages.send({action: 'refresh-settings', userID: this.userID, settings: this.settings})
         }
@@ -188,7 +192,7 @@ export default class TokenGatingPlugin extends BasePlugin {
 
             // Save token update 
             await this.setField('tokens', this.tokens)
-            // If token belongs to region, trigger hook to verify access
+            // If token belongs to region, trigger hook to verify user's access
             if(e.regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
@@ -203,7 +207,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             this.tokens = e.tokens
             // Save set tokens
             await this.setField('tokens', this.tokens)
-            // If token belongs to region, trigger hook to verify access
+            // If token belongs to region, trigger hook to verify user's access
             if(e.regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
@@ -212,22 +216,23 @@ export default class TokenGatingPlugin extends BasePlugin {
         }
 
         // Called when tokens have been changed
-        if(e.action == 'refresh-tokens'){
+        if(e.action == 'refresh-tokens') {
             
-            // Don't need to refresh if we sent the message
-            if(this.userID == e.userID){
+            // Don't need to refresh if we are the sender
+            if(this.userID == e.userID) {
                 return
             }
 
-            // console.debug('[Token Gating] Token rules refreshed')
-
+            // Set tokens for receivers
             this.tokens = e.tokens
-            if(e.regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
+            // Gate space for receivers who are inside the space
+            if(this.insideSpace) this.gateSpace(true)
+            // Update tokens in panel for receivers
             this.menus.postMessage({action: 'send-tokens', tokens: e.tokens}, '*')
         }
 
         // Called when settings have been change
-        if(e.action == 'refresh-settings'){
+        if(e.action == 'refresh-settings') {
 
             // Don't need to refresh if we sent the message
             if(this.userID == e.userID) {
@@ -236,7 +241,15 @@ export default class TokenGatingPlugin extends BasePlugin {
 
             // console.debug('[Token Gating] Updating token gating settings')
             this.settings = e.settings
-            this.menus.postMessage({action: 'send-settings', regionID: e.regionID, settings: e.settings}, '*')  
+            // Gate space for users already inside
+            if(this.insideSpace) this.gateSpace(true)
+            // Update settings in panel for users other than you
+            this.menus.postMessage({action: 'send-settings', regionID: e.regionID, settings: e.settings}, '*') 
+        }
+
+        // Called when a user's admin status changes
+        if(e.action == 'admin-status-changed'){
+            this.gateSpace(true)
         }
 
         // console.group('[Token Gating] Updated Tokens')
@@ -258,8 +271,8 @@ export default class TokenGatingPlugin extends BasePlugin {
             if(token.type == 'nft') {
 
                 // Display warning if campaignID or ObjectID is missing
-                if(!token.campaignID || !token.objectID){
-                    console.warn(`[Token Gating] Detected the following missing necessary fields for the token with name '${token.name}': ${token.campaignID ? "" : '[CampaignID]'} ${token.objectID ? "" : '[ObjectID]'}`)
+                if(!token.campaignID && !token.objectID){
+                    console.warn(`[Token Gating] Detected the following missing fields for the token with name '${token.name}': ${token.campaignID ? "" : '[CampaignID]'} ${token.objectID ? "" : '[ObjectID]'}`)
                 }
 
                 let campaignID = token.campaignID || ""
@@ -311,7 +324,7 @@ export default class TokenGatingPlugin extends BasePlugin {
 
             // Display warnings if contract address is missing
             if(!token.contractAddress){
-                console.warn(`[Token Gating] Detected the following missing necessary fields for the token with name '${token.name}': ${token.contractAddress ? "" : '[ContractAddress]'}`)
+                console.warn(`[Token Gating] Detected the following missing fields for the token with name '${token.name}': ${token.contractAddress ? "" : '[ContractAddress]'}`)
             }
 
             // Display warning if invalid contract address
@@ -371,14 +384,42 @@ export default class TokenGatingPlugin extends BasePlugin {
         return dateObject
     }
 
+    /** Called when user properties changed */
+    onUserPropertiesChanged = e => {
+        if(e.changes.auth){
+            this.messages.send({action: 'admin-status-changed'}, false, e.userID)
+        }
+
+    }
+
+    /** Called when user's wallet inventory changes */
+    onWalletInventoryChanged = () => {
+
+        // Stop if already checking inventory
+        if(this.checkingInventory)
+            return
+
+        this.checkingInventory = true
+
+        // Gate space
+        if(this.insideSpace) this.gateSpace(true)
+
+        // Update tokens for all regions
+        for(let token of this.tokens){
+            if(token.regionID) this.hooks.trigger("set-region-tokens", {regionID: token.regionID})
+        }
+
+        // No longer checking inventory
+        this.checkingInventory = false
+    }
+
     /** Called on space enter */
     onSpaceEnter = async () => {
    
         try {
             // Gate space on enter
             await this.gateSpace(false)
-            // Periodically check to ensure users still have the correct tokens
-            if(!this.isAdmin) this.spaceGatingInterval = setInterval(e => this.gateSpace(true), 15000)
+            this.insideSpace = true
         }
         catch(Err) {
             throw(Err)
@@ -389,13 +430,10 @@ export default class TokenGatingPlugin extends BasePlugin {
     /** Called when attempting to gate a space */
     async gateSpace(insideSpace) {
 
+        console.log("GATE SPACE")
         // Stop space gating interval and clear lost token timer if user was made into admin
         this.isAdmin = await this.user.isAdmin()
         if(this.isAdmin && insideSpace){
-            if(this.spaceGatingInterval) {
-                clearInterval(this.spaceGatingInterval)
-                this.spaceGatingInterval = null
-            }
             if(this.missingTokenTimer) {
                 clearTimeout(this.missingTokenTimer)
                 this.missingTokenTimer = null
@@ -407,8 +445,13 @@ export default class TokenGatingPlugin extends BasePlugin {
         let spaceTokens = this.tokens.filter(t => !t.regionID || t.regionID == '')
         
         // Stop if no tokens
-        if(spaceTokens.length == 0)
+        if(spaceTokens.length == 0){
+            if(this.missingTokenTimer) {
+                clearTimeout(this.missingTokenTimer)
+                this.missingTokenTimer = null
+            }
             return
+        }    
         
         // Counters to keep track of how many tokens have granted/denied access
         let accessGranted = 0
@@ -547,12 +590,9 @@ export default class TokenGatingPlugin extends BasePlugin {
     /** Kick user out */
     kickUser(message) {
         
-        // Clear Timers
-        clearInterval(this.regionGatingInterval)
-        clearInterval(this.spaceGatingInterval)
-
         // Open shut down screen 
-       this.user.showShutDownScreen(message, "Lost Access Token")
+        this.insideSpace = false
+        this.user.showShutDownScreen(message, "Lost Access Token")
     }
 
     /** Returns traits as a string */
@@ -675,8 +715,7 @@ class TokenGate extends BaseComponent {
                 // Push token (with access state = true) if query is null
                 this.tokens.push({properties: token, access: true})
             }
-           
-            
+                       
         }
     }
 
