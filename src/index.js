@@ -97,6 +97,44 @@ export default class TokenGatingPlugin extends BasePlugin {
         
     }
 
+     /** Validates any settings that require it */
+     validateSettings(data){
+
+        // Ensure dateFrom cannot be set later than dateTo
+        if(data.dateFrom) {
+            let dateTo = this.convertToDate(this.settings.dateTo)
+            if(dateTo){
+                let dateFrom = this.convertToDate(data.dateFrom)
+                if(dateFrom <= dateTo) {
+                    return true
+                }
+                else{
+                    this.menus.alert('Date cannot be later than "Date / Time To" field', 'Invalid Date Entered', 'error')
+                    return false
+                }
+            }
+        }
+
+        // Ensure dateTo cannot be set earlier than dateFrom
+        if(data.dateTo){
+            let dateFrom = this.convertToDate(this.settings.dateFrom)
+            if(dateFrom){
+                let dateTo = this.convertToDate(data.dateTo)
+                if(dateTo >= dateFrom) {
+                    return true
+                }
+                else{
+                    this.menus.alert('Date cannot be earlier than "Date / Time From" field', 'Invalid Date Entered', 'error')
+                    return false
+                }
+            }
+        }
+
+        // If any other setting, then just return true
+        return true
+
+    }
+
     /** Receives postMessages */
     onMessage = async e => {
         // console.log('[Token Gating] Plugin OnMessage: ', e)
@@ -116,6 +154,12 @@ export default class TokenGatingPlugin extends BasePlugin {
         // Updating token gating settings 
         if(e.action == 'update-settings') {
             // console.debug('[Token Gating] Updating token gating settings')
+
+            // Validate any settings that require it
+            let valid = this.validateSettings(e.settings)
+            if(!valid){
+                return
+            }
 
             // Fetch relevant key and value
             let key = Object.keys(e.settings)

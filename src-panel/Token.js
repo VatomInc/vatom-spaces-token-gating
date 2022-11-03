@@ -71,7 +71,7 @@ export default class Token extends React.PureComponent {
         }
         else{
             console.error("[Token Gating] Contract Address is invalid")
-            Swal.fire('Invalid Contract Address', 'You have entered an invalid contract address for the NFT collections you wish to use as token keys. Please enter the correct contract address in the field below.', 'error')
+            Swal.fire('Invalid Contract Address', 'You have entered an invalid contract address for the NFT collections you wish to use as token keys. Please enter the correct contract address.', 'error')
             this.updateToken({contractAddress: address})
             this.updateToken({validAddress: false})
         }

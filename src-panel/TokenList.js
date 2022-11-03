@@ -34,7 +34,7 @@ export default class TokenList extends React.PureComponent {
         let id = uuidv4()
 
         // Create default name
-        let tokenNum = this.props.tokens.length+1
+        let tokenNum = this.props.tokens.filter(t => !t.regionID).length + 1
         let defaultName = "Token " + tokenNum
 
         const {value} = await Swal.fire({
