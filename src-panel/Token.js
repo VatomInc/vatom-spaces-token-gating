@@ -58,6 +58,7 @@ export default class Token extends React.PureComponent {
         if(address.length == 0 || address == ''){
             this.updateToken({contractAddress: null})
             this.updateToken({validAddress: null})
+            return
         }
 
         console.debug('[Token Gating] Validating contract address')
