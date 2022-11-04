@@ -73,6 +73,7 @@ export default class TokenGatingPlugin extends BasePlugin {
         this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
         this.hooks.addHandler('wallet.refreshInventory', this.onWalletInventoryChanged)
         this.hooks.addHandler('user.properties.changed', this.onUserPropertiesChanged)
+        this.hooks.addHandler('debug.text', this.debugText)
 
     }
 
@@ -81,7 +82,55 @@ export default class TokenGatingPlugin extends BasePlugin {
         this.hooks.removeHandler('core.space.enter', this.onSpaceEnter)
         this.hooks.removeHandler('wallet.refreshInventory', this.onWalletInventoryChanged)
         this.hooks.removeHandler('user.properties.changed', this.onUserPropertiesChanged)
+        this.hooks.removeHandler('debug.text', this.debugText)
         if(this.missingTokenTimer) clearTimeout(this.missingTokenTimer)
+    }
+
+    /** Returns debug info */
+    debugText = () => {
+
+        if(!this.tokens || this.tokens.length == 0){
+            return
+        }
+
+        // Get copy of all tokens
+        let tokens = []
+
+        // Remove all null values
+        for(let token of this.tokens) {
+            let t = Object.fromEntries(Object.entries(token).filter(([_, v]) => ( (v != null && v != '') || v?.length > 0 )))
+            tokens.push(t)
+        }
+               
+        // Filter to get space and region tokens
+        let spaceTokens = tokens.filter(t => !t.regionID)
+        let regionTokens = tokens.filter(t => t.regionID)
+
+        let text = ''
+
+        // Construct debug text for space tokens
+        if(spaceTokens.length > 0){
+            text += 'Space \n'
+            for(let i=0; i<spaceTokens.length; i++) {
+                text += `${i}: ${JSON.stringify(spaceTokens[i])} \n`
+            }
+        }
+
+        text += '\n'
+
+        // Construct debug text for region tokens
+        if(regionTokens.length > 0){
+            text += 'Regions \n'
+            for(let i=0; i<regionTokens.length; i++) {
+                text += `${i}: ${JSON.stringify(regionTokens[i])} \n`
+            }
+        }
+
+        return {
+            name: 'Token Gating',
+            text: text
+        }
+        
     }
 
     /** Fetches all saved settings and assigns them to plugin variables */

@@ -30,7 +30,7 @@ This plugin is used for token gating inside of spaces (Experimental)
 ## Using the plugin (Version 1)
 - Open the tokens menu (inside admin button on bottom bar)
 - Create token/s
-- Input fields to specify token rules. Tokens will only activate once a necessary field (e.g. CampaignID, ObjectID, ContractAddress) are filled in.
+- Input fields to specify token rules. If no rules are specified, it will check if you own ANY vatoms.
 - Try it out with vatoms from your wallet. You can get the necessary details for your vatoms by opening your wallet -> clicking on a vatom -> clicking on the three dots in top right -> click on general info -> all necessary info should be there
 - Can delete token if/when necessary.
 - Can specify settings such as multi-condition or time/date restriction

@@ -60,7 +60,7 @@ export default class TokenList extends React.PureComponent {
             regionID: this.props.regionID || null,
             minAmountHeld: 1,
             contractAddress: null,
-            heldSince: null,
+            // heldSince: null,
             denialMessage: null,
             multiTraitCondition: 'and',
             traits: []}
