@@ -21,7 +21,8 @@ export default class Token extends React.PureComponent {
 
     /** Deletes this token */
     deleteToken() {
-        window.parent.postMessage({action: 'delete-token', id: this.props.token.id, regionID: this.props.regionID}, '*');
+        let message = {action: 'delete-token', id: this.props.token.id, regionID: this.props.regionID}
+        window.parent.postMessage(message, '*');
         this.forceUpdate()
     }
 

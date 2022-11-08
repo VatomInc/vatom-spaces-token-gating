@@ -237,12 +237,14 @@ export default class TokenGatingPlugin extends BasePlugin {
             this.tokens.push(e.token)
             // Save new token 
             await this.setField('tokens', this.tokens)
+            // Check if region
+            let regionID = e.regionID ? e.regionID : null
             // If token belongs to region, trigger hook to verify access
-            if(e.regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
+            if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
             // Send message to notify other users that tokens have changed
-            this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens})
+            this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens, regionID: regionID})
         }
 
         // Update a token
@@ -260,12 +262,14 @@ export default class TokenGatingPlugin extends BasePlugin {
             this.tokens[index][key] = value
             // Save token update 
             await this.setField('tokens', this.tokens)
+            // Check if region
+            let regionID = e.regionID ? e.regionID : null
             // If token belongs to region, trigger hook to verify access
-            if(e.regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
+            if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
             // Send message to notify other users that tokens have changed
-            this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens})
+            this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens, regionID: regionID})
            
         }
 
@@ -285,12 +289,14 @@ export default class TokenGatingPlugin extends BasePlugin {
 
             // Save token update 
             await this.setField('tokens', this.tokens)
+            // Check if region
+            let regionID = e.regionID ? e.regionID : null
             // If token belongs to region, trigger hook to verify user's access
-            if(e.regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
+            if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
             // Send message to notify other users that tokens have changed
-            this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens})
+            this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens, regionID: regionID})
         }
 
         // Set tokens 
@@ -300,12 +306,14 @@ export default class TokenGatingPlugin extends BasePlugin {
             this.tokens = e.tokens
             // Save set tokens
             await this.setField('tokens', this.tokens)
+            // Check if region
+            let regionID = e.regionID ? e.regionID : null
             // If token belongs to region, trigger hook to verify user's access
-            if(e.regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
+            if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
             // Send message to notify other users that tokens have changed
-            this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens})
+            this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens, regionID: regionID})
         }
 
         // Called when tokens have been changed
@@ -320,6 +328,8 @@ export default class TokenGatingPlugin extends BasePlugin {
             this.tokens = e.tokens
             // Gate space for receivers who are inside the space
             if(this.insideSpace) this.gateSpace(true)
+            // Update region tokens for receivers
+            if(e.regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Update tokens in panel for receivers
             this.menus.postMessage({action: 'send-tokens', tokens: e.tokens}, '*')
         }
@@ -716,9 +726,6 @@ class TokenGate extends BaseComponent {
     // Settings for this region
     settings = {restrictDate: false, dateFrom: null, dateTo: null, multiCondition: "and"}
 
-    // Used to track if we have checked access to the current region
-    regionCheck = false
-    
     // Used to track if we have been granted access to the current region
     regionAccess = false
  
@@ -788,12 +795,12 @@ class TokenGate extends BaseComponent {
         let regionTokens = this.plugin.tokens.filter(t => t.regionID == this.region.id)
 
         // Stop if no tokens returned
-        if(regionTokens.length == 0){
+        if(regionTokens.length == 0) {
             return
         }
 
         // Add all tokens along with their access states
-        for(let token of regionTokens){
+        for(let token of regionTokens) {
             // Construct query based on token parameters for given user ID
             let query = this.plugin.constructQuery(this.plugin.userID, token)
             // Return if query wasn't set
@@ -803,7 +810,7 @@ class TokenGate extends BaseComponent {
                 // Push token (and access state) to region's list of tokens 
                 this.tokens.push({properties: token, access: response.result})
             }
-            else{
+            else {
                 console.error('[Token Gating] API query was null or undefined. User will be allowed entry to region.')
                 // Push token (with access state = true) if query is null
                 this.tokens.push({properties: token, access: true})
@@ -859,11 +866,81 @@ class TokenGate extends BaseComponent {
                 return
 
             // Stop if we have checked the region and already given access
-            if(this.regionCheck && this.regionAccess)
+            if(this.regionAccess)
                 return
 
+            // Records how many times a user is granted or denied access by a token
+            let grantedCounter = 0
+            let denialCounter = 0
+
+            for(let token of this.tokens) {
+
+                // If we've been granted access from the current token
+                if(token.access) {
+                    // Check multi-condition settings
+                    if(this.settings.multiCondition == 'and') {
+                        grantedCounter++
+                        if(this.tokens.length == grantedCounter) {
+                            console.debug(`[Token Gating] Entry Granted. User possesses all of the required tokens in their wallet.`)
+                            this.regionAccess = true
+                        }
+                    }
+                    else{
+                        console.debug(`[Token Gating] Entry Granted. User possesses any of the required token in their wallet.`)
+                        this.regionAccess = true
+                    }    
+                }
+                else{
+                    if(this.settings.multiCondition == 'and') {
+                        console.debug(`[Token Gating] Entry Denied. User doesn't possess all required tokens in their wallet.`)
+                        this.regionAccess = false
+                        this.missingToken = token
+                    }
+                    else{
+                        denialCounter++
+                        if(this.tokens.length == denialCounter){
+                            console.debug(`[Token Gating] Entry Denied. User doesn't possess any required tokens in their wallet.`)
+                            this.regionAccess = false
+                            this.missingToken = token
+                        }
+                    }
+                }
+            }
+                                
+            // If we have been granted access to the region
+            if(this.regionAccess) {
+                
+                // If dates are restricted
+                if(this.settings.restrictDate) {
+
+                    // Convert Date string to date object
+                    let currentDate = new Date()
+                    let dateFrom = this.plugin.convertToDate(this.settings.dateFrom)
+                    let dateTo = this.plugin.convertToDate(this.settings.dateTo)
+        
+                    // If current date is before dateFrom restriction
+                    if(dateFrom) {
+                        if(currentDate < dateFrom){
+                            console.debug(`[Token Gating] Entry Denied. Tokens for this space will only activate post the following date and time: ${dateFrom}`)
+                            this.dateTimeBlocked = true
+                            this.regionAccess = false
+                        }
+                    }
+
+                    // If current date is after dateTo restriction
+                    if(dateTo) {
+                        if(currentDate > dateTo){
+                            console.debug(`[Token Gating] Entry Denied. Tokens for this space are no longer active post the following date and time: ${dateTo}`)
+                            this.dateTimeBlocked = true
+                            this.regionAccess = false
+                        }
+                    }
+        
+                }
+            }
+
             // If we have checked the current region and denied access, then kick user out
-            if(this.regionCheck && !this.regionAccess) {
+            if(!this.regionAccess) {
 
                 // Let admins bypass denial
                 if(this.plugin.isAdmin) {
@@ -899,9 +976,9 @@ class TokenGate extends BaseComponent {
                     // Record position user should be returned to if they are kicked out of the region
                     if(directionOffset) {
                         this.returnPosition = {
-                            x: currentPosition.x + directionOffset.x,
-                            y: currentPosition.y + directionOffset.y,
-                            z: currentPosition.z + directionOffset.z
+                            x: this.lastUserPosition.x + directionOffset.x,
+                            y: this.lastUserPosition.y + directionOffset.y,
+                            z: this.lastUserPosition.z + directionOffset.z
                         }
                     }
 
@@ -937,105 +1014,26 @@ class TokenGate extends BaseComponent {
         
                 }
                 else {
-                    // Edge Case: If user's last known position isn't recorded, just move user out slowly in a direction based on region scale
+                    // Edge Case: If user's last known position isn't recorded, just move user out in a direction based on region scale
                     let position = await this.plugin.user.getPosition()
-                    if(this.region){
+                    if(this.region) {
                         if(this.region.scale_x > this.region.scale_z) {
-                            this.plugin.user.setPosition(position.x, position.y, position.z + 1)
+                            this.plugin.user.setPosition(position.x, position.y, this.region.world_bounds_z)
                         }
                         else if (this.region.scale_x < this.region.scale_z) {
-                            this.plugin.user.setPosition(position.x + 1, position.y, position.z)
+                            this.plugin.user.setPosition(this.region.world_bounds_x, position.y, position.z)
                         }
-                        else{
-                            this.plugin.user.setPosition(position.x + 1, position.y, position.z + 1)
-                        }
-                    }
-                }
-
-            }
-
-            // If we haven't checked the region yet
-            if(!this.regionCheck) {
-
-                // Records how many times user is granted or denied access
-                let grantedCounter = 0
-                let denialCounter = 0
-
-                for(let token of this.tokens) {
-
-                    // If we've been granted access from the current token
-                    if(token.access) {
-                        // Check multi-condition settings
-                        if(this.settings.multiCondition == 'and') {
-                            grantedCounter++
-                            if(this.tokens.length == grantedCounter) {
-                                console.debug(`[Token Gating] Entry Granted. User possesses all of the required tokens in their wallet.`)
-                                this.regionAccess = true
-                            }
-                        }
-                        else{
-                            console.debug(`[Token Gating] Entry Granted. User possesses any of the required token in their wallet.`)
-                            this.regionAccess = true
-                        }    
-                    }
-                    else{
-                        if(this.settings.multiCondition == 'and') {
-                            console.debug(`[Token Gating] Entry Denied. User doesn't possess every required token in their wallet.`)
-                            this.regionAccess = false
-                            this.missingToken = token
-                        }
-                        else{
-                            denialCounter++
-                            if(this.tokens.length == denialCounter){
-                                console.debug(`[Token Gating] Entry Denied. User doesn't possess any required tokens in their wallet.`)
-                                this.regionAccess = false
-                                this.missingToken = token
-                            }
+                        else {
+                            this.plugin.user.setPosition(this.region.world_bounds_x, position.y, this.region.world_bounds_z)
                         }
                     }
                 }
-                                    
-                // If we have been granted access to the region
-                if(this.regionAccess) {
-                    
-                    // If dates are restricted
-                    if(this.settings.restrictDate) {
-
-                        // Convert Date string to date object
-                        let currentDate = new Date()
-                        let dateFrom = this.plugin.convertToDate(this.settings.dateFrom)
-                        let dateTo = this.plugin.convertToDate(this.settings.dateTo)
-            
-                        // If current date is before dateFrom restriction
-                        if(dateFrom) {
-                            if(currentDate < dateFrom){
-                                console.debug(`[Token Gating] Entry Denied. Tokens for this space will only activate post the following date and time: ${dateFrom}`)
-                                this.dateTimeBlocked = true
-                                this.regionAccess = false
-                            }
-                        }
-    
-                        // If current date is after dateTo restriction
-                        if(dateTo) {
-                            if(currentDate > dateTo){
-                                console.debug(`[Token Gating] Entry Denied. Tokens for this space are no longer active post the following date and time: ${dateTo}`)
-                                this.dateTimeBlocked = true
-                                this.regionAccess = false
-                            }
-                        }
-            
-                    }
-                }
-
-                // Have successfully checked the region
-                this.regionCheck = true
 
             }
 
         }
         else{
             // If user not inside region, set vars to false and track user position
-            if(this.regionCheck) this.regionCheck = false
             if(this.removingUser) this.removingUser = false
             if(this.dateTimeBlocked) this.dateTimeBlocked = false
             this.lastUserPosition = await this.plugin.user.getPosition()
