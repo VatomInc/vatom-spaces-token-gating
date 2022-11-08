@@ -996,7 +996,7 @@ class TokenGate extends BaseComponent {
                         this.removingUser = true
                         
                         // Set user position to last recorded position before entering zone
-                        this.plugin.user.setPosition(returnPosition.x, returnPosition.y, returnPosition.z)
+                        this.plugin.user.setPosition(returnPosition.x, returnPosition.y, returnPosition.z, false, false)
 
                         // Construct error messages
                         let denialMessage = ""
@@ -1018,13 +1018,13 @@ class TokenGate extends BaseComponent {
                     let position = await this.plugin.user.getPosition()
                     if(this.region) {
                         if(this.region.scale_x > this.region.scale_z) {
-                            this.plugin.user.setPosition(position.x, position.y, this.region.world_bounds_z)
+                            this.plugin.user.setPosition(position.x, position.y, this.region.world_bounds_z, false, false)
                         }
                         else if (this.region.scale_x < this.region.scale_z) {
-                            this.plugin.user.setPosition(this.region.world_bounds_x, position.y, position.z)
+                            this.plugin.user.setPosition(this.region.world_bounds_x, position.y, position.z, false, false)
                         }
                         else {
-                            this.plugin.user.setPosition(this.region.world_bounds_x, position.y, this.region.world_bounds_z)
+                            this.plugin.user.setPosition(this.region.world_bounds_x, position.y, this.region.world_bounds_z, false, false)
                         }
                     }
                 }
