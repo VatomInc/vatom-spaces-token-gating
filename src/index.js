@@ -112,17 +112,23 @@ export default class TokenGatingPlugin extends BasePlugin {
         if(spaceTokens.length > 0){
             text += 'Space \n'
             for(let i=0; i<spaceTokens.length; i++) {
-                text += `${i}: ${JSON.stringify(spaceTokens[i])} \n`
+                let campaignID = spaceTokens[i].campaignID ? `CampaignID: ${spaceTokens[i].campaignID}` : ''
+                let objectID = spaceTokens[i].objectID ? `ObjectID: ${spaceTokens[i].objectID}` : ''
+                let address = spaceTokens[i].contractAddress ? `Address: ${spaceTokens[i].contractAddress}` : ''
+                let details = spaceTokens[i].network == 'vatom' ? campaignID + " " + objectID : address
+                text += `${i}: name=${spaceTokens[i].name} ${details} amount=${spaceTokens[i].minAmountHeld} \n`
             }
         }
 
-        text += '\n'
-
         // Construct debug text for region tokens
         if(regionTokens.length > 0){
-            text += 'Regions \n'
+            text += 'Region \n'
             for(let i=0; i<regionTokens.length; i++) {
-                text += `${i}: ${JSON.stringify(regionTokens[i])} \n`
+                let campaignID = regionTokens[i].campaignID ? `campaignID: ${regionTokens[i].campaignID}` : ''
+                let objectID = regionTokens[i].objectID ? `objectID=${regionTokens[i].objectID}` : ''
+                let address = regionTokens[i].contractAddress ? `address=${regionTokens[i].contractAddress}` : ''
+                let details = regionTokens[i].network == 'vatom' ? campaignID + " " + objectID : address
+                text += `${i}: name=${regionTokens[i].name} regionID=${regionTokens[i].regionID} ${details} amount=${regionTokens[i].minAmountHeld} \n`
             }
         }
 
