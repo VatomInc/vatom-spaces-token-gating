@@ -1,7 +1,7 @@
 {
   "id": "token-gating",
   "name": "Token Gating",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "beta": true,
   "description": "Allows for the denial of access to a space or region within a space, depending on if a user has a specific NFT/s in their wallet",
   "longDescription": "Allows for administrators or space owners to deny access to their space or any regions within their space for any users who do not possess the correct NFT or NFTs inside their wallet.",
