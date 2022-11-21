@@ -794,6 +794,11 @@ class TokenGate extends BaseComponent {
             return
         }
 
+        // Region gate user (clear tracked variables)
+        if(this.removingUser) this.removingUser = false
+        if(this.dateTimeBlocked) this.dateTimeBlocked = false
+        if(this.regionAccess) this.regionAccess = false
+
         // Clear existing tokens
         this.tokens = []
 
@@ -1042,6 +1047,7 @@ class TokenGate extends BaseComponent {
             // If user not inside region, set vars to false and track user position
             if(this.removingUser) this.removingUser = false
             if(this.dateTimeBlocked) this.dateTimeBlocked = false
+            if(this.regionAccess) this.regionAccess = false
             this.lastUserPosition = await this.plugin.user.getPosition()
         }
 
