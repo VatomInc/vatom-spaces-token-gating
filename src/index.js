@@ -722,6 +722,17 @@ export default class TokenGatingPlugin extends BasePlugin {
         return string
     }
 
+    /** Called when region is deleted */
+    async onRegionDelete(regionID){
+        
+        // Remove all tokens belonging to deleted region
+        this.tokens = this.tokens.filter(t => t.regionID != regionID)
+        // Save token update 
+        await this.setField('tokens', this.tokens)
+        // Send message to notify other users that tokens have changed
+        this.messages.send({action: 'refresh-tokens', userID: this.userID, tokens: this.tokens, regionID: regionID})
+    }
+
 }
 
 class TokenGate extends BaseComponent {
@@ -758,7 +769,10 @@ class TokenGate extends BaseComponent {
     }
 
     onUnload() {
+        // Stop gating interval
         clearInterval(this.regionGatingInterval)
+        // Remove all tokens associated with this region
+        this.plugin.onRegionDelete(this.objectID)
     }
 
     /** Get saved fields */
