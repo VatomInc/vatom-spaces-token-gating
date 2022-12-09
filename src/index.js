@@ -70,7 +70,7 @@ export default class TokenGatingPlugin extends BasePlugin {
         this.getSaved()
 
         // Remove any unused region tokens
-        this.removeDeletedRegionTokens()
+        // this.removeDeletedRegionTokens()
 
         // Add hooks
         this.hooks.addHandler('core.space.enter', this.onSpaceEnter)
