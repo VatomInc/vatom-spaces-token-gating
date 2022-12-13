@@ -67,7 +67,7 @@ export default class TokenGatingPlugin extends BasePlugin {
         this.isAdmin = await this.user.isAdmin()
 
         // Fetch all saved fields
-        this.getSaved()
+        await this.getSaved()
 
         // Remove any unused region tokens
         // this.removeDeletedRegionTokens()
@@ -148,11 +148,11 @@ export default class TokenGatingPlugin extends BasePlugin {
     async getSaved() {
         
         // Get saved tokens
-        let savedTokens = this.getField('tokens')
+        let savedTokens = await this.getField('tokens')
         if(savedTokens) this.tokens = savedTokens
 
         // Get saved settings
-        let settings = this.getField('settings')
+        let settings = await this.getField('settings')
         if(settings) this.settings = settings
         
     }
