@@ -1,14 +1,12 @@
 {
   "id": "token-gating",
   "name": "Token Gating",
-  "version": "1.0.0",
+  "version": "1.1.2",
   "beta": true,
   "description": "Allows for the denial of access to a space or region within a space, depending on if a user has a specific NFT/s in their wallet",
-  "longDescription": "Allows for administrators or space owners to deny access to their space or any regions within their space for any users who do not possess the correct NFT or NFTs inside their wallet.",
-  "configuration": "In order to token gate your space, open the token gating panel via the button inside the admin section of the bottom control bar. Specify your token rules. Your space will be token gated based on the rules you input. In order to token gate a region. Create a zone object. Add the token gating component to that zone. Take the same steps you would if token gating a space.",
   "category": "Accessibility",
   "businessId": "ym3t3mPi0g",
   "price": 0,
-  "releaseNotes": "Creation of plugin",
-  "entrypoint": ""
+  "releaseNotes": "Prevent infinite loop",
+  "entrypoint": "https://plugins.vatom.com/ym3t3mPi0g/3ca4ab35b8fe43a691b7d64e8fc8d0bf/plugin.js"
 }

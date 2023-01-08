@@ -748,7 +748,7 @@ export default class TokenGatingPlugin extends BasePlugin {
 class TokenGate extends BaseComponent {
 
     // Tokens assigned to this region
-    tokens = []
+    // tokens = []
 
     // Settings for this region
     settings = {restrictDate: false, dateFrom: null, dateTo: null, multiCondition: "and"}
@@ -758,6 +758,9 @@ class TokenGate extends BaseComponent {
  
     // Tracks if we are actively removing user from region
     removingUser = false
+
+    // Tracks if we are actively testing access
+    verifyingAccess = false
 
     async onLoad() {
         
@@ -810,7 +813,7 @@ class TokenGate extends BaseComponent {
 
     /** Sets region tokens */
     setTokens = async e => {
-
+        return
         // Stop if not relevant to this region
         if(e.regionID != this.region.id){
             return
@@ -883,8 +886,11 @@ class TokenGate extends BaseComponent {
     /** Token gate the current region */
     async gateRegion() {
 
+        // Fetch all tokens belonging to this region
+        let regionTokens = this.plugin.tokens.filter(t => t.regionID == this.region.id)
+
         // Stop if no tokens assigned to this region
-        if(this.tokens.length == 0){
+        if(regionTokens.length == 0){
             return
         }
 
@@ -899,21 +905,38 @@ class TokenGate extends BaseComponent {
                 return
 
             // Stop if we have checked the region and already given access
+            if(this.verifyingAccess)
+                return
+            
+            this.verifyingAccess = true
+
+            // Stop if we have checked the region and already given access
             if(this.regionAccess)
                 return
 
+            
             // Records how many times a user is granted or denied access by a token
             let grantedCounter = 0
             let denialCounter = 0
 
-            for(let token of this.tokens) {
+            for(let token of regionTokens) {
+
+                // Construct query based on token parameters for given user ID
+                let query = this.plugin.constructQuery(this.plugin.userID, token)
+                let access = false
+
+                if(query) { 
+                    // Pass our query to Allowl API
+                    let response = await this.plugin.user.queryAllowlPermission(query)
+                    access = response.result
+                }
 
                 // If we've been granted access from the current token
-                if(token.access) {
+                if(access) {
                     // Check multi-condition settings
                     if(this.settings.multiCondition == 'and') {
                         grantedCounter++
-                        if(this.tokens.length == grantedCounter) {
+                        if(regionTokens.length == grantedCounter) {
                             console.debug(`[Token Gating] Entry Granted. User possesses all of the required tokens in their wallet.`)
                             this.regionAccess = true
                         }
@@ -931,7 +954,7 @@ class TokenGate extends BaseComponent {
                     }
                     else{
                         denialCounter++
-                        if(this.tokens.length == denialCounter){
+                        if(regionTokens.length == denialCounter){
                             console.debug(`[Token Gating] Entry Denied. User doesn't possess any required tokens in their wallet.`)
                             this.regionAccess = false
                             this.missingToken = token
@@ -984,8 +1007,8 @@ class TokenGate extends BaseComponent {
                         denialMessage = `The token assigned to this region is only active ${this.settings.dateFrom ? 'from ' + this.plugin.formatDateString(this.settings.dateFrom): 'before'}  ${this.settings.dateTo ? this.settings.dateFrom ? ' and before ' + this.plugin.formatDateString(this.settings.dateTo) : this.plugin.formatDateString(this.settings.dateTo) : ''}`
                     }
                     else{
-                        let traitToString = this.missingToken?.properties.traits?.length > 0 ? ` with the following traits: <br><br>` + this.plugin.tokenTraitsToString(this.missingToken.properties.traits) : ''
-                        denialMessage = this.missingToken?.properties.denialMessage ? marked.parse(this.missingToken.properties?.denialMessage) : `Missing Access Token <br><br> Access to this space requires that visitors hold ${this.missingToken.properties.minAmountHeld} of the missing token` + traitToString    
+                        let traitToString = this.missingToken?.traits?.length > 0 ? ` with the following traits: <br><br>` + this.plugin.tokenTraitsToString(this.missingToken?.traits) : ''
+                        denialMessage = this.missingToken?.denialMessage ? marked.parse(this.missingToken?.denialMessage) : `Missing Access Token <br><br> Access to this space requires that visitors hold ${this.missingToken?.minAmountHeld} of the missing token` + traitToString    
                     }
                     
                     // Display message
@@ -1037,8 +1060,8 @@ class TokenGate extends BaseComponent {
                             denialMessage = `The token assigned to this region is only active ${this.settings.dateFrom ? 'from ' + this.plugin.formatDateString(this.settings.dateFrom): 'before'}  ${this.settings.dateTo ? this.settings.dateFrom ? ' and before ' + this.plugin.formatDateString(this.settings.dateTo) : this.plugin.formatDateString(this.settings.dateTo) : ''}`
                         }
                         else {
-                            let traitToString = this.missingToken?.properties.traits?.length > 0 ? ` with the following traits: <br><br>` + this.plugin.tokenTraitsToString(this.missingToken.properties.traits) : ''
-                            denialMessage = this.missingToken?.properties.denialMessage ? marked.parse(this.missingToken.properties?.denialMessage) : `Missing Access Token <br><br> Access to this space requires that visitors hold ${this.missingToken.properties.minAmountHeld} of the missing token` + traitToString    
+                            let traitToString = this.missingToken?.traits?.length > 0 ? ` with the following traits: <br><br>` + this.plugin.tokenTraitsToString(this.missingToken?.traits) : ''
+                            denialMessage = this.missingToken?.denialMessage ? marked.parse(this.missingToken?.denialMessage) : `Missing Access Token <br><br> Access to this space requires that visitors hold ${this.missingToken.minAmountHeld} of the missing token` + traitToString    
                         }
                         
                         // Show denial message
@@ -1073,6 +1096,7 @@ class TokenGate extends BaseComponent {
             this.lastUserPosition = await this.plugin.user.getPosition()
         }
 
+        this.verifyingAccess = false
     }
 
     // Check if user is inside region that is token gated
