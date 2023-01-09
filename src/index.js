@@ -267,7 +267,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             // Check if region
             let regionID = e.regionID ? e.regionID : null
             // If token belongs to region, trigger hook to verify access
-            if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
+            // if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
             // Send message to notify other users that tokens have changed
@@ -292,7 +292,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             // Check if region
             let regionID = e.regionID ? e.regionID : null
             // If token belongs to region, trigger hook to verify access
-            if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
+            // if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
             // Send message to notify other users that tokens have changed
@@ -319,7 +319,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             // Check if region
             let regionID = e.regionID ? e.regionID : null
             // If token belongs to region, trigger hook to verify user's access
-            if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
+            // if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
             // Send message to notify other users that tokens have changed
@@ -336,7 +336,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             // Check if region
             let regionID = e.regionID ? e.regionID : null
             // If token belongs to region, trigger hook to verify user's access
-            if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
+            // if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
             // Send message to notify other users that tokens have changed
@@ -356,7 +356,7 @@ export default class TokenGatingPlugin extends BasePlugin {
             // Gate space for receivers who are inside the space
             if(this.insideSpace) this.gateSpace(true)
             // Update region tokens for receivers
-            if(e.regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
+            // if(e.regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Update tokens in panel for receivers
             this.menus.postMessage({action: 'send-tokens', tokens: e.tokens}, '*')
         }
@@ -537,9 +537,9 @@ export default class TokenGatingPlugin extends BasePlugin {
         if(this.insideSpace) this.gateSpace(true)
 
         // Update tokens for all regions
-        for(let token of this.tokens){
-            if(token.regionID) this.hooks.trigger("set-region-tokens", {regionID: token.regionID})
-        }
+        // for(let token of this.tokens){
+        //     if(token.regionID) this.hooks.trigger("set-region-tokens", {regionID: token.regionID})
+        // }
 
         // No longer checking inventory
         this.checkingInventory = false
@@ -815,8 +815,8 @@ class TokenGate extends BaseComponent {
     setTokens = async e => {
 
         // Warm up the allowl api
-        // let query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":this.plugin.userID}}, 0]}}
-        // await this.plugin.user.queryAllowlPermission(query)
+        let query = {query: {"gte":[{"count":{"fn":"get-vatoms","preauth":true}}, 0]}}
+        await this.plugin.user.queryAllowlPermission(query)
 
         return
         // Stop if not relevant to this region
