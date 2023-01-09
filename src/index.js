@@ -760,7 +760,7 @@ class TokenGate extends BaseComponent {
     removingUser = false
 
     // Tracks if we are actively testing access
-    verifyingAccess = false
+    queryRunning = false
 
     async onLoad() {
         
@@ -886,6 +886,13 @@ class TokenGate extends BaseComponent {
     /** Token gate the current region */
     async gateRegion() {
 
+        // Stop if we have checked the region and already given access
+        if(this.queryRunning)
+            return
+        
+        this.queryRunning = true
+
+
         // Fetch all tokens belonging to this region
         let regionTokens = this.plugin.tokens.filter(t => t.regionID == this.region.id)
 
@@ -903,12 +910,6 @@ class TokenGate extends BaseComponent {
             // Stop if actively removing user already
             if(this.removingUser)
                 return
-
-            // Stop if we have checked the region and already given access
-            if(this.verifyingAccess)
-                return
-            
-            this.verifyingAccess = true
 
             // Stop if we have checked the region and already given access
             if(this.regionAccess)
@@ -1088,7 +1089,7 @@ class TokenGate extends BaseComponent {
             }
 
         }
-        else{
+        else {
             // If user not inside region, set vars to false and track user position
             if(this.removingUser) this.removingUser = false
             if(this.dateTimeBlocked) this.dateTimeBlocked = false
@@ -1096,7 +1097,7 @@ class TokenGate extends BaseComponent {
             this.lastUserPosition = await this.plugin.user.getPosition()
         }
 
-        this.verifyingAccess = false
+        this.queryRunning = false
     }
 
     // Check if user is inside region that is token gated
