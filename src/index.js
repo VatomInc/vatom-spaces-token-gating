@@ -815,7 +815,7 @@ class TokenGate extends BaseComponent {
     setTokens = async e => {
 
         // Warm up the allowl api
-        let query = {query: {"gte":[{"count":{"fn":"get-vatoms","preauth":true}}, 0]}}
+        let query = {query: {"gte":[{"count":{"fn":"get-vatoms","preauth":true, "owner": this.plugin.userID}}, 0]}}
         await this.plugin.user.queryAllowlPermission(query)
 
         return
