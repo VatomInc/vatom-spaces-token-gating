@@ -11,6 +11,11 @@
 
  import { marked } from 'marked'
 
+// Hack for google
+const googleTokenIds = ['0Tia7qxbJ7', '6YWT3lHewK', 'EGCKHcF9zi', 'jwtmeMAfJy', 'lgL1gG7R7J', 'RJ6AsNozQc', 'uFvJPMpzKp', 'yET71XCfoe', 'YI2CNEO4dU']
+const testTokenIds = ['lR1eKtjC1p', 'BijY0TQp0F']
+
+
 export default class TokenGatingPlugin extends BasePlugin {
 
     /** Plugin info */
@@ -406,9 +411,20 @@ export default class TokenGatingPlugin extends BasePlugin {
                     console.warn(`[Token Gating] Detected the following missing fields for the token with name '${token.name}': ${token.campaignID ? "" : '[CampaignID]'} ${token.objectID ? "" : '[ObjectID]'}`)
                 }
 
+                let businessID = token.businessID || ""
                 let campaignID = token.campaignID || ""
                 let objectID = token.objectID || ""
 
+                if (googleTokenIds.includes(token.objectID)) {
+                    businessID = 'jpH1B3LnK0'
+                    campaignID = 'Df9nhZ3P3a'
+                }
+
+                if (testTokenIds.includes(token.objectID)) {
+                    businessID = 'nQwtevgfOa'
+                    campaignID = 'khWLAkkyrq'
+                }
+                
                 // Construct Allowl query for Vatom Smart NFT
                 if(token.traits && token.traits.length > 0) {
                     
@@ -423,16 +439,16 @@ export default class TokenGatingPlugin extends BasePlugin {
                     }
 
                     if(token.traits.multiTraitCondition == "and"){
-                        query = {query: {"gte":[{"count":{"filter":{"fn":"get-vatoms","owner":userID,"campaign":campaignID,"objectDefinition":objectID}, "by":{ "and": traits.map(trait => ({ "eq": [ { "select": [ "it", "attributes", trait.key ] }, trait.value ] })) } } }, token.minAmountHeld] } }
+                        query = {query: {"gte":[{"count":{"filter":{"fn":"get-vatoms","owner":userID,"business":businessID,"campaign":campaignID,"objectDefinition":objectID}, "by":{ "and": traits.map(trait => ({ "eq": [ { "select": [ "it", "attributes", trait.key ] }, trait.value ] })) } } }, token.minAmountHeld] } }
                     }
                     else{
-                        query = {query: {"gte":[{"count":{"filter":{"fn":"get-vatoms","owner":userID,"campaign":campaignID,"objectDefinition":objectID}, "by":{ "or": traits.map(trait => ({ "eq": [ { "select": [ "it", "attributes", trait.key ] }, trait.value ] })) } } }, token.minAmountHeld] } }
+                        query = {query: {"gte":[{"count":{"filter":{"fn":"get-vatoms","owner":userID,"business":businessID,"campaign":campaignID,"objectDefinition":objectID}, "by":{ "or": traits.map(trait => ({ "eq": [ { "select": [ "it", "attributes", trait.key ] }, trait.value ] })) } } }, token.minAmountHeld] } }
                     }
                     
                 }
                 else {
                     // Construct Allowl query for vatom smart NFT
-                    query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":userID,"campaign":campaignID,"objectDefinition":objectID}}, token.minAmountHeld]}}
+                    query = {query: {"gte":[{"count":{"fn":"get-vatoms","owner":userID,"business":businessID,"campaign":campaignID,"objectDefinition":objectID}}, token.minAmountHeld]}}
                 }
                
             }
@@ -762,6 +778,9 @@ class TokenGate extends BaseComponent {
     // Tracks if we are actively testing access
     queryRunning = false
 
+    // Initialized
+    initialized = false
+
     async onLoad() {
         
         // Get region that component is attached to
@@ -815,9 +834,11 @@ class TokenGate extends BaseComponent {
     setTokens = async e => {
 
         // Warm up the allowl api
-        let query = {query: {"gte":[{"count":{"fn":"get-vatoms","preauth":true, "owner": this.plugin.userID}}, 0]}}
-        await this.plugin.user.queryAllowlPermission(query)
-
+        if (!this.initialized) {
+            this.initialized = true
+            let query = {"query":{"fn":"get-vatoms","preauth":true, "owner": this.plugin.userID}}
+            await this.plugin.user.queryAllowlPermission(query)
+        }
         return
         // Stop if not relevant to this region
         if(e.regionID != this.region.id){
