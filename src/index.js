@@ -778,9 +778,6 @@ class TokenGate extends BaseComponent {
     // Tracks if we are actively testing access
     queryRunning = false
 
-    // Initialized
-    initialized = false
-
     async onLoad() {
         
         // Get region that component is attached to
@@ -833,12 +830,6 @@ class TokenGate extends BaseComponent {
     /** Sets region tokens */
     setTokens = async e => {
 
-        // Warm up the allowl api
-        if (!this.initialized) {
-            this.initialized = true
-            let query = {"query":{"fn":"get-vatoms","preauth":true, "owner": this.plugin.userID}}
-            await this.plugin.user.queryAllowlPermission(query)
-        }
         return
         // Stop if not relevant to this region
         if(e.regionID != this.region.id){

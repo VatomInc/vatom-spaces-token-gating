@@ -1,12 +1,12 @@
 {
   "id": "token-gating",
   "name": "Token Gating",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "beta": true,
   "description": "Allows for the denial of access to a space or region within a space, depending on if a user has a specific NFT/s in their wallet",
   "category": "Accessibility",
   "businessId": "ym3t3mPi0g",
   "price": 0,
-  "releaseNotes": "Fix preauth query",
-  "entrypoint": "https://plugins.vatom.com/ym3t3mPi0g/9c29a440f30b1078168612b66ac156a6/plugin.js"
+  "releaseNotes": "Remove preauth",
+  "entrypoint": "https://plugins.vatom.com/ym3t3mPi0g/e476cb940ea489e6f6919967d450bb8e/plugin.js"
 }
