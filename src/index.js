@@ -945,8 +945,13 @@ class TokenGate extends BaseComponent {
 
                     if(query) { 
                         // Pass our query to Allowl API
-                        let response = await this.plugin.user.queryAllowlPermission(query)
-                        access = response.result
+                        try {
+                            let response = await this.plugin.user.queryAllowlPermission(query)
+                            access = response.result
+                        } catch (err) {
+                            console.error(err)
+                            access = false
+                        }
                     }
 
                     // If we've been granted access from the current token
