@@ -11,11 +11,6 @@
 
  import { marked } from 'marked'
 
-// Hack for google
-const googleTokenIds = ['0Tia7qxbJ7', '6YWT3lHewK', 'EGCKHcF9zi', 'jwtmeMAfJy', 'lgL1gG7R7J', 'RJ6AsNozQc', 'uFvJPMpzKp', 'yET71XCfoe', 'YI2CNEO4dU']
-const testTokenIds = ['lR1eKtjC1p', 'BijY0TQp0F']
-
-
 export default class TokenGatingPlugin extends BasePlugin {
 
     /** Plugin info */
@@ -271,8 +266,6 @@ export default class TokenGatingPlugin extends BasePlugin {
             await this.setField('tokens', this.tokens)
             // Check if region
             let regionID = e.regionID ? e.regionID : null
-            // If token belongs to region, trigger hook to verify access
-            // if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
             // Send message to notify other users that tokens have changed
@@ -296,8 +289,6 @@ export default class TokenGatingPlugin extends BasePlugin {
             await this.setField('tokens', this.tokens)
             // Check if region
             let regionID = e.regionID ? e.regionID : null
-            // If token belongs to region, trigger hook to verify access
-            // if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
             // Send message to notify other users that tokens have changed
@@ -323,8 +314,6 @@ export default class TokenGatingPlugin extends BasePlugin {
             await this.setField('tokens', this.tokens)
             // Check if region
             let regionID = e.regionID ? e.regionID : null
-            // If token belongs to region, trigger hook to verify user's access
-            // if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
             // Send message to notify other users that tokens have changed
@@ -340,8 +329,6 @@ export default class TokenGatingPlugin extends BasePlugin {
             await this.setField('tokens', this.tokens)
             // Check if region
             let regionID = e.regionID ? e.regionID : null
-            // If token belongs to region, trigger hook to verify user's access
-            // if(regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Send updated token list back to panel
             this.menus.postMessage({action: 'send-tokens', tokens: this.tokens}, '*')
             // Send message to notify other users that tokens have changed
@@ -360,8 +347,6 @@ export default class TokenGatingPlugin extends BasePlugin {
             this.tokens = e.tokens
             // Gate space for receivers who are inside the space
             if(this.insideSpace) this.gateSpace(true)
-            // Update region tokens for receivers
-            // if(e.regionID) this.hooks.trigger("set-region-tokens", {regionID: e.regionID})
             // Update tokens in panel for receivers
             this.menus.postMessage({action: 'send-tokens', tokens: e.tokens}, '*')
         }
@@ -389,7 +374,7 @@ export default class TokenGatingPlugin extends BasePlugin {
         }
 
         // console.group('[Token Gating] Updated Tokens')
-        // console.log("[Plugin] ",this.tokens)
+        // console.log("[Plugin] ", this.tokens)
         // console.log("[Server] ", this.getField('tokens'))
         // console.groupEnd()
     }
@@ -414,16 +399,6 @@ export default class TokenGatingPlugin extends BasePlugin {
                 let businessID = token.businessID || ""
                 let campaignID = token.campaignID || ""
                 let objectID = token.objectID || ""
-
-                if (googleTokenIds.includes(token.objectID)) {
-                    businessID = 'jpH1B3LnK0'
-                    campaignID = 'Df9nhZ3P3a'
-                }
-
-                if (testTokenIds.includes(token.objectID)) {
-                    businessID = 'nQwtevgfOa'
-                    campaignID = 'khWLAkkyrq'
-                }
                 
                 // Construct Allowl query for Vatom Smart NFT
                 if(token.traits && token.traits.length > 0) {
@@ -551,11 +526,6 @@ export default class TokenGatingPlugin extends BasePlugin {
 
         // Gate space
         if(this.insideSpace) this.gateSpace(true)
-
-        // Update tokens for all regions
-        // for(let token of this.tokens){
-        //     if(token.regionID) this.hooks.trigger("set-region-tokens", {regionID: token.regionID})
-        // }
 
         // No longer checking inventory
         this.checkingInventory = false
@@ -763,9 +733,6 @@ export default class TokenGatingPlugin extends BasePlugin {
 
 class TokenGate extends BaseComponent {
 
-    // Tokens assigned to this region
-    // tokens = []
-
     // Settings for this region
     settings = {restrictDate: false, dateFrom: null, dateTo: null, multiCondition: "and"}
 
@@ -788,10 +755,6 @@ class TokenGate extends BaseComponent {
 
         // Hooks to update region tokens and settings
         this.plugin.hooks.addHandler('set-region-settings', this.setSettings)
-        this.plugin.hooks.addHandler('set-region-tokens', this.setTokens)
-
-        // Set tokens
-        this.plugin.hooks.trigger('set-region-tokens', {regionID: this.region.id})
 
         // Periodically check to ensure specified regions are gated
         this.regionGatingInterval = setInterval(e => this.gateRegion(), 100)
@@ -825,51 +788,6 @@ class TokenGate extends BaseComponent {
         // Update panel
         this.plugin.menus.postMessage({action: 'send-settings', regionID: e.regionID, settings: this.settings}, '*')
         this.plugin.messages.send({action: 'refresh-settings', userID: this.plugin.userID, regionID: e.regionID, settings: this.settings})
-    }
-
-    /** Sets region tokens */
-    setTokens = async e => {
-
-        return
-        // Stop if not relevant to this region
-        if(e.regionID != this.region.id){
-            return
-        }
-
-        // Region gate user (clear tracked variables)
-        if(this.removingUser) this.removingUser = false
-        if(this.dateTimeBlocked) this.dateTimeBlocked = false
-        if(this.regionAccess) this.regionAccess = false
-
-        // Clear existing tokens
-        this.tokens = []
-
-        // Fetch all tokens belonging to this region
-        let regionTokens = this.plugin.tokens.filter(t => t.regionID == this.region.id)
-
-        // Stop if no tokens returned
-        if(regionTokens.length == 0) {
-            return
-        }
-
-        // Add all tokens along with their access states
-        for(let token of regionTokens) {
-            // Construct query based on token parameters for given user ID
-            let query = this.plugin.constructQuery(this.plugin.userID, token)
-            // Return if query wasn't set
-            if(query) { 
-                // Pass our query to Allowl API
-                let response = await this.plugin.user.queryAllowlPermission(query)
-                // Push token (and access state) to region's list of tokens 
-                this.tokens.push({properties: token, access: response.result})
-            }
-            else {
-                console.error('[Token Gating] API query was null or undefined. User will be allowed entry to region.')
-                // Push token (with access state = true) if query is null
-                this.tokens.push({properties: token, access: true})
-            }
-                       
-        }
     }
 
     /** Opens token menu for region */
