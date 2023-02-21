@@ -102,7 +102,6 @@ export default class Token extends React.PureComponent {
 
                 {this.props.token.network == 'vatom' ? <>
 
-                    {/*TODO: Add link to "learn more here" */}
                     <LabeledSwitch onToggle={e => this.updateToken({type: this.props.token.type == 'nft' ? 'coin' : 'nft'})} labelLeft={"Smart NFT"} labelRight={"Coins"} direction={this.props.token.type == 'nft' ? 'left' : 'right'} 
                     help={this.props.token.type == 'nft' ? 'Choosing this option allows you to restrict access to this space/zone for the most loyal users of your business. Set the minimum number of coins the attendee needs to hold for entry. <br> Learn more here' : null}/>
 
@@ -114,13 +113,12 @@ export default class Token extends React.PureComponent {
                         </Field>
                         <Field name='Object ID' help='The Object ID for the Vatom Smart NFT collection you wish to use as token keys.'>
                             <Input type='text' value={this.props.token.objectID ?? ''} onValue={v => this.updateToken({objectID: v})} help='Enter the Object ID for the Vatom Smart NFT collection you wish to use as token keys.' />
-                        </Field>
-                    </> : 
-                    <>
-                        <Field name='Business ID (optional)' help='The Business ID of the Vatom coin collection that you wish to use as coin token keys.'>
+                        </Field> 
+                    </> : null}
+                    
+                    <Field name='Business ID' help={`The Business ID of the Vatom ${this.props.token.type == 'nft' ? 'Smart NFT' : 'coin collection'} that you wish to use as token keys.`}>
                             <Input type='text' value={this.props.token.businessID ?? ''} onValue={v => this.updateToken({businessID: v})} help='Enter the Business ID of the Vatom coin collection that you wish to use as coin token keys.' />
-                        </Field>
-                    </>}
+                    </Field>
 
                 </> : <>
                 
