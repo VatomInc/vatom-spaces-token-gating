@@ -119,8 +119,9 @@ export default class TokenGatingPlugin extends BasePlugin {
             for(let i=0; i<spaceTokens.length; i++) {
                 let campaignID = spaceTokens[i].campaignID ? `CampaignID: ${spaceTokens[i].campaignID}` : ''
                 let objectID = spaceTokens[i].objectID ? `ObjectID: ${spaceTokens[i].objectID}` : ''
+                let businessID = spaceTokens[i].businessID ? `BusinessID: ${spaceTokens[i].businessID}` : ''
                 let address = spaceTokens[i].contractAddress ? `Address: ${spaceTokens[i].contractAddress}` : ''
-                let details = spaceTokens[i].network == 'vatom' ? campaignID + " " + objectID : address
+                let details = spaceTokens[i].network == 'vatom' ? campaignID + " " + objectID + " " + businessID : address
                 text += `${i}: name=${spaceTokens[i].name} ${details} amount=${spaceTokens[i].minAmountHeld} \n`
             }
         }
@@ -131,8 +132,9 @@ export default class TokenGatingPlugin extends BasePlugin {
             for(let i=0; i<regionTokens.length; i++) {
                 let campaignID = regionTokens[i].campaignID ? `campaignID: ${regionTokens[i].campaignID}` : ''
                 let objectID = regionTokens[i].objectID ? `objectID=${regionTokens[i].objectID}` : ''
+                let businessID = regionTokens[i].businessID ? `businessID=${regionTokens[i].businessID}}` : ''
                 let address = regionTokens[i].contractAddress ? `address=${regionTokens[i].contractAddress}` : ''
-                let details = regionTokens[i].network == 'vatom' ? campaignID + " " + objectID : address
+                let details = regionTokens[i].network == 'vatom' ? campaignID + " " + objectID + " " + businessID : address
                 text += `${i}: name=${regionTokens[i].name} regionID=${regionTokens[i].regionID} ${details} amount=${regionTokens[i].minAmountHeld} \n`
             }
         }
